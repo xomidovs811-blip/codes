@@ -1,0 +1,14 @@
+[Unit]
+Description=Zayavka Telegram bot (aiogram polling)
+After=network-online.target zayavka-api.service
+Wants=network-online.target
+
+[Service]
+User=__APP_USER__
+WorkingDirectory=__APP_DIR__
+ExecStart=__APP_DIR__/.venv/bin/python run_bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

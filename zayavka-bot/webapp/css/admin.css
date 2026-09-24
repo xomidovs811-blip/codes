@@ -1,0 +1,136 @@
+/* Foydalanuvchilar va Ruxsatlar (admin.html) - simple version: one list of
+   user cards, each with its identity (name/phone/channel) and a flat set of
+   permission checkboxes right on the card. No matrices, no side panel. */
+
+.am { --am-line: #e6eaf3; --am-soft: #f5f7fb; --am-text: #111827; --am-sub: #6b7280; --am-green: #16a34a; }
+.am .ic { width: 17px; height: 17px; flex: 0 0 auto; }
+.am .ic.inl { width: 14px; height: 14px; margin: 0 4px -2px 0; }
+.am .ic.edit-hint { width: 13px; height: 13px; margin: 0 0 -2px 4px; color: var(--am-sub); }
+.am h1 { background: none; color: var(--am-text); -webkit-text-fill-color: currentColor; margin: 0 0 2px; font-size: 22px; line-height: 1.2; }
+.am-sub { margin: 0; color: var(--am-sub); font-size: 13px; }
+.am-muted { color: var(--am-sub); font-size: 13px; }
+.am-foot { color: var(--am-sub); font-size: 13px; margin: 10px 2px 0; line-height: 1.5; }
+
+/* header */
+.am-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 6px 0 16px; }
+.am-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.am-brand-ic { width: 44px; height: 44px; border-radius: 12px; background: #dbe7ff; color: var(--accent); display: grid; place-items: center; flex: 0 0 auto; }
+.am-brand-ic .ic { width: 24px; height: 24px; }
+.am:not(.am-wide) .am-add { width: 100%; }
+
+/* toolbar (search + filters) */
+.am-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.am-search { position: relative; flex: 1 1 240px; max-width: 420px; }
+.am-search .ic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
+.am .am-search .am-in { padding-left: 38px; }
+.am .am-in {
+  padding: 10px 12px; border: 1.5px solid var(--am-line); border-radius: 12px;
+  font-size: 14px; background: #fff; color: var(--am-text); font-family: inherit; width: 100%;
+}
+.am .am-in:focus { outline: none; border-color: var(--accent); }
+.am .am-in.sm { width: auto; flex: 0 1 170px; padding: 9px 10px; font-size: 13px; border-radius: 10px; }
+.am:not(.am-wide) .am-in.sm { flex: 1 1 45%; }
+
+/* buttons */
+.am-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 14px;
+  border-radius: 10px; border: 1.5px solid transparent; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.am-btn.sm { padding: 7px 12px; font-size: 13px; }
+.am-btn.sm .ic { width: 15px; height: 15px; }
+.am-btn:disabled { opacity: 0.55; cursor: default; }
+.am-btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); }
+.am-btn-outline { background: #fff; color: var(--accent); border-color: #cfe0ff; }
+.am-btn-warn { background: #fff; color: #b45309; border-color: #fcd9a8; }
+.am-btn-danger { background: #fff; color: #dc2626; border-color: #fbc9c9; }
+.am-btn.armed { background: #dc2626; color: #fff; border-color: #dc2626; }
+.am-block { width: 100%; margin-top: 14px; }
+
+/* generic card */
+.am-card { background: #fff; border: 1px solid var(--am-line); border-radius: 14px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05); padding: 14px; margin-bottom: 12px; }
+.am-empty { text-align: center; color: var(--am-sub); padding: 30px 12px; }
+
+/* requests */
+.am-reqsec { margin-bottom: 4px; }
+.am-sec-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; color: var(--am-text); margin: 4px 0 10px; }
+.am-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; }
+.am-reqs { display: grid; gap: 10px; margin-bottom: 16px; }
+.am-wide .am-reqs { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.am-req-body { margin: 8px 0; font-size: 14px; display: grid; gap: 4px; }
+.am-note { background: var(--am-soft); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+
+/* user card */
+.am-ucard.is-blocked { opacity: 0.75; }
+.am-uhead { display: flex; align-items: flex-start; gap: 10px; }
+.am-uinfo { flex: 1; min-width: 0; }
+.am-uname-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.am-uname-row b { font-size: 15px; color: var(--am-text); }
+.am-idline { font-size: 13px; color: var(--am-sub); margin-top: 2px; display: block; }
+.am-linklike { background: none; border: none; padding: 0; text-align: left; cursor: pointer; color: var(--am-sub); }
+.am-linklike:hover { color: var(--accent); }
+.am-lock { color: #94a3b8; padding-top: 2px; }
+.am-persons, .am-objects { margin-top: 8px; }
+
+.am-av { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto; font-size: 13px; font-weight: 700; }
+.av0 { background: #dbe4ff; color: #3b5bdb; } .av1 { background: #d3f9e0; color: #2b8a3e; }
+.av2 { background: #ffe8cc; color: #d9480f; } .av3 { background: #f3d9fa; color: #9c36b5; }
+.av4 { background: #c5f6fa; color: #0c8599; } .av5 { background: #ffdeeb; color: #c2255c; }
+
+.am-role { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.role-owner { background: #ede9fe; color: #6d28d9; }
+.role-admin { background: #e5e9f5; color: #334155; }
+.role-user { background: #e0ecff; color: #1d4ed8; }
+.am-st { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.st-ok { background: #dcfce7; color: #166534; }
+.st-wait { background: #fef3c7; color: #92400e; }
+.st-inv { background: #dbeafe; color: #1e40af; }
+.st-off { background: #fee2e2; color: #991b1b; }
+
+.am-urole { margin: 10px 0 2px; max-width: 320px; }
+.am-seg { display: flex; gap: 4px; padding: 3px; background: var(--am-soft); border: 1px solid var(--am-line); border-radius: 11px; }
+.am-seg button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 8px; border: none; border-radius: 8px; background: none; color: var(--am-sub); font-size: 12px; font-weight: 700; cursor: pointer; }
+.am-seg button .ic { width: 14px; height: 14px; }
+.am-seg button.on { background: #fff; color: var(--accent); box-shadow: 0 1px 3px rgba(16, 24, 40, 0.15); }
+.am-seg.dis button { cursor: default; opacity: 0.7; }
+
+.am-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.am-chip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1.5px solid var(--am-line);
+  border-radius: 999px; background: #fff; font-size: 12px; font-weight: 600; cursor: pointer; user-select: none;
+}
+.am-chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+.am-chip.on { border-color: var(--accent); background: #eaf1ff; color: var(--accent); }
+.am-chip.on::before { content: "✓"; font-weight: 800; }
+.am-chip.dis { opacity: 0.55; cursor: default; }
+
+.am-admin-note { margin: 10px 0 0; font-size: 13px; color: var(--am-sub); background: var(--am-soft); border-radius: 10px; padding: 9px 11px; }
+
+/* the checkbox permission grid - plain, real checkboxes as asked for */
+.am-perms { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 10px; margin-top: 10px; }
+.am-wide .am-perms { grid-template-columns: repeat(4, 1fr); }
+.am-cb { display: flex; align-items: center; gap: 7px; padding: 6px 4px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--am-text); cursor: pointer; }
+.am-cb:hover { background: var(--am-soft); }
+.am-cb input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); flex: 0 0 auto; margin: 0; }
+.am-cb .ic { width: 14px; height: 14px; color: var(--am-sub); flex: 0 0 auto; }
+.am-cb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.am-cb.dis { opacity: 0.5; cursor: default; }
+.am-cb.dis:hover { background: none; }
+
+.am-uactions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+/* add-user dialog helpers */
+.am-sec { margin: 14px 0 6px; font-size: 13px; font-weight: 800; color: var(--am-text); }
+
+/* pager */
+.am-pager { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.am-pages { display: flex; gap: 6px; }
+.am-pg { min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid var(--am-line); background: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--am-text); cursor: pointer; display: grid; place-items: center; }
+.am-pg.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.am-pg:disabled { opacity: 0.4; cursor: default; }
+.am-pg .ic { width: 15px; height: 15px; }
+
+/* add-user dialog sizing */
+.am-wide .am-modal-backdrop { align-items: center; justify-content: center; }
+.am-wide .am-modal-backdrop .modal { max-width: 520px; border-radius: 20px; }
+.am-modal-backdrop .modal { max-height: 90vh; }
+.am-modal-backdrop .modal-close { display: grid; place-items: center; width: 34px; height: 34px; }

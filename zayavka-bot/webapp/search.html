@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Zayavkani qidirish</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="css/style.css?v=4" />
+</head>
+<body>
+<div class="page">
+
+  <div class="tabs">
+    <a href="table.html">📋 Jadval</a>
+    <a class="active" href="search.html">🔎 Qidirish</a>
+  </div>
+
+  <h1>🔎 Zayavkani qidirish</h1>
+
+  <div class="card">
+    <div class="field">
+      <label>Qidiruv (raqam, obyekt, mahsulot, yetkazib beruvchi...)</label>
+      <input type="text" id="searchInput" placeholder="Masalan: 15-09-2026 yoki Атлас дом" />
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-primary" id="searchBtn" type="button">Qidirish</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 id="resultCount">Qidiruv so'zini kiriting</h2>
+    <div id="listContainer"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script src="js/common.js?v=37"></script>
+<script src="js/search.js?v=4"></script>
+</body>
+</html>

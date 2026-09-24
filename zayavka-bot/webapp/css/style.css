@@ -1,0 +1,1105 @@
+:root {
+  /* Deliberately NOT tied to Telegram's --tg-theme-* variables: in dark
+     mode those turn text near-white, which goes invisible against this
+     form's hardcoded light field backgrounds. The form should always look
+     like a plain, minimalist document - black text on white/light fields -
+     regardless of the viewer's Telegram theme. */
+  --tg-bg: #f4f5f9;
+  --tg-text: #111214;
+  --tg-hint: #6b7280;
+  --tg-link: #2563eb;
+  --tg-button: #2563eb;
+  --tg-button-text: #ffffff;
+  --tg-secondary-bg: #ffffff;
+
+  --grad-start: #2563eb;
+  --grad-end: #0ea5e9;
+  --accent: #2563eb;
+  --accent-soft: #eaf1ff;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --border: #e3e6f5;
+  --danger: #ef4444;
+  --radius: 16px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: radial-gradient(circle at top left, #f5f3ff 0%, var(--tg-bg) 45%, #ecfeff 100%);
+  color: var(--tg-text);
+  padding-bottom: 24px;
+}
+
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.page.wide {
+  max-width: 1600px;
+}
+
+h1 {
+  font-size: 22px;
+  margin: 8px 0 16px;
+  font-weight: 800;
+  background: linear-gradient(90deg, var(--grad-start), var(--grad-end));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+h2 {
+  font-size: 15px;
+  margin: 0 0 8px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 800;
+}
+
+.card {
+  background: var(--tg-secondary-bg);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.10);
+  border: 1px solid var(--border);
+  border-top: 4px solid transparent;
+  border-image: linear-gradient(90deg, var(--grad-start), var(--grad-end)) 1;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 700px) {
+  .form-grid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.field {
+  margin-bottom: 12px;
+}
+
+.field:last-child { margin-bottom: 0; }
+
+label {
+  display: block;
+  font-size: 13px;
+  color: var(--tg-hint);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 15px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: #fbfbff;
+  color: var(--tg-text);
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+input:disabled, input[readonly] {
+  background: #eceef1;
+  color: var(--tg-hint);
+}
+
+.number-box {
+  text-align: center;
+  padding: 20px 10px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--grad-start), var(--grad-end));
+  box-shadow: 0 8px 22px rgba(109, 40, 217, 0.28);
+}
+
+.number-box .value {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  word-break: break-all;
+  color: #ffffff;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  scrollbar-width: auto;
+  scrollbar-color: var(--accent) var(--accent-soft);
+  padding-bottom: 4px;
+}
+
+/* Always-visible, thick, colored scrollbar - the thin default OS one was
+   easy to miss, especially on the wide items table. */
+.table-wrap::-webkit-scrollbar {
+  height: 12px;
+}
+.table-wrap::-webkit-scrollbar-track {
+  background: var(--accent-soft);
+  border-radius: 8px;
+}
+.table-wrap::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 8px;
+  border: 2px solid var(--accent-soft);
+}
+.table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--grad-start);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 1750px;
+  font-size: 15px;
+}
+
+th, td {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 6px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+tbody tr:nth-child(even) { background: #f8f8ff; }
+tbody tr:hover { background: var(--accent-soft); }
+
+th {
+  background: linear-gradient(90deg, var(--grad-start), var(--grad-end));
+  position: sticky;
+  top: 0;
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: normal;
+}
+
+/* Цена (8th column) and Аванс получил (10th column) sized to match */
+#itemsTable th:nth-child(8), #itemsTable td:nth-child(8),
+#itemsTable th:nth-child(10), #itemsTable td:nth-child(10) {
+  width: 120px;
+}
+
+/* Наименование товара (2nd) and Выполняемая работа / смётная группа (12th) - 2x wider */
+#itemsTable th:nth-child(2), #itemsTable td:nth-child(2) {
+  min-width: 320px;
+}
+#itemsTable th:nth-child(12), #itemsTable td:nth-child(12) {
+  min-width: 320px;
+}
+
+/* Сметная группа is mandatory (see highlightMissingWorkType in items_form.js) */
+.required-star { color: var(--danger); font-weight: 800; }
+.field-required-missing {
+  border-color: var(--danger) !important;
+  background: #fff1f1 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+.field-required-missing::placeholder { color: var(--danger); opacity: 0.7; }
+
+td input, td textarea, td select {
+  min-width: 90px;
+  padding: 6px 8px;
+  font-size: 15px;
+  border-radius: 8px;
+}
+
+td.narrow input, td.narrow select { min-width: 55px; }
+td.total-cell input { min-width: 110px; font-weight: 700; }
+td.total-cell input { background: #fff7e6; color: #b45309; }
+td.remainder-cell input { background: #dcfce7; color: #15803d; }
+
+.row-actions { text-align: center; width: 36px; }
+
+/* --- Zayavkalar jadvali (table.html): one row per saved zayavka / Excel file --- */
+.result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.result-head h2 { margin: 0; }
+.export-summary { font-size: 14px; line-height: 1.9; margin-bottom: 8px; }
+.export-summary b { color: var(--accent); }
+.export-status { min-height: 22px; margin: 6px 0 12px; font-size: 14px; font-weight: 700; }
+.export-status.info { color: var(--accent); }
+.export-status.ok { color: #15803d; }
+.export-status.error { color: #b91c1c; }
+#zayavkaTable { min-width: 1450px; }
+.creator-chip {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+  white-space: nowrap;
+}
+.creator-chip.creator-me { background: #dcfce7; color: #166534; }
+#zayavkaTable tbody tr.clickable { cursor: pointer; }
+#zayavkaTable td.right, #zayavkaTable tfoot td.right { text-align: right; }
+#zayavkaTable td.strong { font-weight: 800; color: #15803d; }
+#zayavkaTable td.num-cell { font-weight: 800; color: var(--accent); }
+#zayavkaTable td.empty { text-align: center; }
+#zayavkaTable tfoot td {
+  font-weight: 800;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-top: 2px solid var(--accent);
+}
+/* --- Versiyalar tarixi (history.html) --- */
+#versionTable { min-width: 1000px; }
+#versionTable tbody tr.clickable { cursor: pointer; }
+#versionTable td.right { text-align: right; }
+#versionTable td.strong { font-weight: 800; color: #15803d; }
+#versionTable tbody tr.latest-row td { background: var(--accent-soft); }
+.ver-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.ver-latest {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #15803d;
+  font-weight: 800;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.row-btns { white-space: nowrap; }
+.tbl-btn {
+  border: 1px solid var(--border);
+  background: var(--tg-secondary-bg);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 16px;
+  cursor: pointer;
+}
+.tbl-btn:hover { background: var(--accent-soft); }
+.tbl-btn:disabled { opacity: 0.5; cursor: default; }
+
+.tbl-del.confirming {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: none;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.btn:active { transform: scale(0.98); }
+
+.btn-primary {
+  background: linear-gradient(90deg, var(--grad-start), var(--grad-end));
+  color: #ffffff;
+  width: 100%;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.32);
+}
+
+.btn-secondary {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.btn-block {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  padding: 4px 8px;
+  font-size: 18px;
+}
+
+/* Second-tap delete confirmation (e.g. Postavshiklar ro'yxatini boshqarish) */
+.btn-danger.confirming {
+  background: var(--danger);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+/* Full-size red CTA (e.g. "Saqlamasdan chiqish" on the unsaved-changes card)
+   - .btn-danger above is a small transparent icon button, not meant for this. */
+.btn-outline-danger {
+  background: #ffffff;
+  color: var(--danger);
+  border: 1.5px solid var(--danger);
+}
+.btn-outline-danger.confirming {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+/* "Saqlanmagan qoralama topildi" card on items.html (setupDraftBanner) */
+.draft-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fef3c7;
+  border: 1.5px solid #f59e0b;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+.draft-text { flex: 1 1 240px; font-size: 14px; color: #7c2d12; line-height: 1.4; }
+.draft-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.draft-actions .btn { width: auto; padding: 9px 14px; font-size: 13px; }
+
+.actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.table-card .actions-row { flex-wrap: wrap; }
+
+.hint {
+  font-size: 12px;
+  color: var(--tg-hint);
+  margin-top: 6px;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, var(--grad-start), var(--grad-end));
+  color: #fff;
+  padding: 11px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 50;
+  max-width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+}
+.toast.show { opacity: 1; }
+.toast.error { background: linear-gradient(90deg, #ef4444, #f97316); box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35); }
+
+.filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 600px) {
+  .filters { grid-template-columns: repeat(2, 1fr); }
+}
+
+.list-item {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  background: var(--tg-secondary-bg);
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+.list-item:hover { background: var(--accent-soft); box-shadow: 0 6px 16px rgba(79, 70, 229, 0.15); transform: translateY(-1px); }
+.list-item .number { font-weight: 800; color: var(--accent); }
+.list-item .meta { font-size: 13px; color: var(--tg-hint); margin-top: 4px; }
+
+.empty {
+  text-align: center;
+  color: var(--tg-hint);
+  padding: 30px 10px;
+}
+
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 27, 75, 0.45);
+  z-index: 40;
+  align-items: flex-end;
+}
+.modal-backdrop.show { display: flex; }
+.modal {
+  background: var(--tg-secondary-bg);
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  border-radius: 20px 20px 0 0;
+  padding: 18px;
+  box-shadow: 0 -10px 30px rgba(79, 70, 229, 0.25);
+}
+.modal-close {
+  float: right;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--tg-hint);
+  cursor: pointer;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.tabs a {
+  flex: 1;
+  text-align: center;
+  padding: 9px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tabs a.active {
+  background: linear-gradient(90deg, var(--grad-start), var(--grad-end));
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.3);
+}
+
+/* Kirish / Ro'yxatdan o'tish tabs on the access card (table.html) */
+.auth-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.auth-tab {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.auth-tab.active {
+  background: linear-gradient(90deg, var(--grad-start), var(--grad-end));
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.3);
+}
+.auth-pane .field:last-of-type { margin-bottom: 14px; }
+
+.spinner {
+  text-align: center;
+  padding: 20px;
+  color: var(--tg-hint);
+}
+
+/* --- Document-style summary header (object/date/from/komu/payment + number) --- */
+.summary-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: stretch;
+  background: var(--tg-secondary-bg);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.10);
+  border: 1px solid var(--border);
+}
+
+.summary-fields {
+  flex: 1 1 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+}
+
+.s-field {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.s-icon { font-size: 15px; }
+.s-label { color: var(--tg-hint); font-weight: 600; white-space: nowrap; }
+.s-value { color: var(--tg-text); font-weight: 700; }
+
+.summary-card .number-box {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(135deg, var(--grad-start), var(--grad-end));
+  margin: 0;
+}
+
+.number-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.table-card { padding: 12px; }
+
+/* --- Live running totals footer: Jami summa / Olingan avans / Ostatka --- */
+.totals-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 22px;
+  background: var(--tg-secondary-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08);
+}
+
+.totals-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+/* Shows the FULL text of whichever item-table cell is focused - a narrow
+   column input can hide most of a long Наименование/Комментарие/Сметная
+   группа value behind its own scroll, so this mirrors it in full, live, as
+   you type. Sits in the totals bar's own left-over space (it left-justifies
+   while the totals stay right-justified, so nothing new needed adding). */
+.cell-preview {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 16px;
+  margin-right: 4px;
+  border-right: 1px solid var(--border);
+}
+.cell-preview-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tg-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.cell-preview-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tg-text);
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
+}
+.cell-preview.empty .cell-preview-text {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--tg-hint);
+}
+
+.totals-item-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tg-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.totals-value {
+  font-weight: 800;
+  font-size: 16px;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.totals-value.totals-orange {
+  background: #fff7e6;
+  color: #b45309;
+}
+
+.totals-value.totals-green {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.scroll-hint {
+  display: none;
+  font-size: 12px;
+  color: var(--tg-hint);
+  text-align: center;
+  padding: 6px 0 2px;
+}
+
+/* --- Phone-width tuning: PC (Telegram Desktop) and phone clients render
+   this same page, so phones need bigger tap targets and >=16px inputs -
+   below that, iOS Safari/Telegram WebView auto-zooms the whole page on
+   focus, which is jarring on a form this dense. Applies automatically on a
+   narrow screen (real @media) AND whenever the user picks "📱" from the
+   header's PC/Mobile toggle (body.force-mobile), regardless of actual
+   device width - same declarations, two triggers. --- */
+@media (max-width: 700px) {
+  .scroll-hint { display: block; }
+
+  input, select, textarea {
+    font-size: 16px;
+  }
+
+  td input, td select, td textarea {
+    font-size: 16px;
+    min-width: 110px;
+  }
+  td.narrow input, td.narrow select { min-width: 70px; }
+
+  .btn { padding: 13px 18px; }
+  .btn-add { width: 44px; }
+}
+
+body.force-mobile .scroll-hint { display: block; }
+body.force-mobile input, body.force-mobile select, body.force-mobile textarea {
+  font-size: 16px;
+}
+body.force-mobile td input, body.force-mobile td select, body.force-mobile td textarea {
+  font-size: 16px;
+  min-width: 110px;
+}
+body.force-mobile td.narrow input, body.force-mobile td.narrow select { min-width: 70px; }
+body.force-mobile .btn { padding: 13px 18px; }
+body.force-mobile .btn-add { width: 44px; }
+body.force-mobile .approval-grid { grid-template-columns: 1fr !important; }
+
+/* Picking "🖥️" forces the full desktop layout even on an actual phone
+   screen - the page just becomes wider than the viewport and pannable,
+   like a browser's "Request desktop site". Once genuinely fullscreen
+   (requestFullscreen()), this also stretches the content to use nearly the
+   whole window instead of staying capped at 1600px with wasted margins. */
+body.force-desktop .page.wide {
+  min-width: 1300px;
+  width: max(1300px, 96vw);
+  max-width: none;
+}
+body.force-desktop .approval-grid { grid-template-columns: repeat(3, 1fr) !important; }
+body.force-desktop .approval-spacer { display: block !important; }
+body.force-mobile .approval-spacer { display: none !important; }
+body.force-desktop .summary-fields { min-width: 320px; }
+
+/* --- PC/Mobile view toggle, top-right of the header --- */
+.view-toggle-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+/* Orqaga / Oldinga: back/forward through the pages opened so far */
+.nav-buttons {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--tg-secondary-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
+}
+.nav-btn {
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 8px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.nav-btn:disabled { opacity: 0.35; cursor: default; }
+
+/* --- Read-only version page (version.html) --- */
+#versionItemsTable { min-width: 1500px; }
+#versionItemsTable td:nth-child(2),
+#versionItemsTable td:nth-child(12),
+#versionItemsTable td:nth-child(13) { white-space: normal; min-width: 220px; }
+#versionItemsTable td.right { text-align: right; }
+#versionItemsTable td.strong { font-weight: 800; color: #15803d; }
+.version-meta { margin: 0 0 12px; font-size: 13px; color: var(--tg-hint); }
+.version-step { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+.version-step .btn:disabled { opacity: 0.4; cursor: default; }
+.view-toggle {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--tg-secondary-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
+}
+.view-btn {
+  width: 38px;
+  height: 34px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--tg-hint);
+}
+.view-btn.active {
+  background: linear-gradient(90deg, var(--grad-start), var(--grad-end));
+  color: #ffffff;
+}
+
+/* --- Approval/signature block: Инспектор / Кассир / Заявитель / Техданзор / Директор --- */
+.approval-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+@media (min-width: 700px) {
+  .approval-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Only needed to force the row break in the 3-column desktop grid - on a
+   single-column (mobile) layout there's nothing to space out. */
+.approval-spacer { display: none; }
+@media (min-width: 700px) {
+  .approval-spacer { display: block; }
+}
+
+.approval-field label {
+  font-size: 12px;
+  color: var(--tg-hint);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.combo-row {
+  display: flex;
+  gap: 6px;
+}
+.combo-row select { flex: 1; }
+
+/* Custom dropdown for Инспектор / Кассир / Техданзор: every name has a 🗑️ on
+   its right (see setupCombo in items_form.js). */
+.cdd { position: relative; flex: 1; min-width: 0; }
+.cdd-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: #fbfbff;
+  color: var(--tg-text);
+  cursor: pointer;
+}
+.cdd-trigger::after { content: "▾"; color: var(--tg-hint); }
+.cdd.open .cdd-trigger { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
+.cdd-panel {
+  display: none;
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 260px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+}
+.cdd.open .cdd-panel { display: block; }
+.cdd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 8px 2px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.cdd-row:last-child { border-bottom: none; }
+.cdd-row:hover { background: var(--accent-soft); }
+.cdd-row.selected { background: var(--accent-soft); font-weight: 700; }
+.cdd-name { flex: 1; padding: 10px 0; cursor: pointer; font-size: 15px; word-break: break-word; }
+.cdd-del { flex: 0 0 auto; }
+
+/* Поставщик / Ед.изм / Сметная группа row inputs: a "type or pick" suggestion
+   panel (see wireAutocomplete in items_form.js) instead of the native
+   <datalist> popup, which truncated long names to the input's narrow column
+   width with no way to resize it. Fixed-positioned (via JS) so it always has
+   room and the item table's horizontal scroll never clips it. */
+.ac-panel {
+  display: none;
+  position: fixed;
+  z-index: 60;
+  max-height: 280px;
+  min-width: 240px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+}
+.ac-panel.show { display: block; }
+.ac-row {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.ac-row:last-child { border-bottom: none; }
+.ac-row:hover, .ac-row:active { background: var(--accent-soft); }
+.ac-name { display: block; font-size: 15px; white-space: normal; word-break: break-word; line-height: 1.35; }
+.ac-empty { padding: 12px; font-size: 13px; color: var(--tg-hint); text-align: center; }
+
+.btn-add {
+  flex: 0 0 auto;
+  width: 40px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.combo-add-row {
+  display: none;
+  gap: 6px;
+  margin-top: 6px;
+}
+.combo-add-row.show { display: flex; }
+.combo-add-row input { flex: 1; }
+
+.btn-sm { padding: 8px 12px; flex: 0 0 auto; }
+
+.approval-readonly {
+  padding: 10px 12px;
+  border-bottom: 1.5px solid var(--border);
+  font-weight: 700;
+  color: var(--tg-text);
+}
+
+.approval-confirm {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--tg-hint);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+/* --- Print (Chop etish): fit the whole request onto one landscape page --- */
+@media print {
+  @page {
+    size: landscape;
+    margin: 8mm;
+  }
+
+  html, body { width: 100%; }
+  body { background: #ffffff !important; padding-bottom: 0; margin: 0; }
+  .page.wide { max-width: 100%; padding: 0; }
+
+  #addRowBtn, #submitBtn, #printBtn, .actions-row, .row-actions, .toast {
+    display: none !important;
+  }
+  #itemsTable th:last-child { display: none !important; }
+  /* Комментарие (13th column) is almost always empty and just eats space
+     that's better spent making the rest of the table readable on paper -
+     dropped from print only, the field itself still exists on screen. */
+  #itemsTable th:nth-child(13), #itemsTable td:nth-child(13) { display: none !important; }
+
+  .summary-card, .table-card, .totals-bar {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    border-radius: 6px !important;
+    padding: 6px 10px !important;
+    margin-bottom: 6px !important;
+    break-inside: avoid;
+  }
+
+  .number-box {
+    background: #ffffff !important;
+    border: 1px solid #ccc !important;
+    padding: 6px !important;
+  }
+  .number-box .value, .number-label { color: #111214 !important; }
+  .number-box .value { font-size: 15px !important; }
+
+  .s-field { font-size: 10px !important; }
+
+  .table-wrap {
+    overflow: visible !important;
+    border: none !important;
+  }
+
+  table {
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: fixed;
+    font-size: 9.5px;
+  }
+
+  /* Explicit per-column share so the 12 printed columns (Комментарие
+     dropped, see above) fill the full width of one landscape page - the
+     space that column would've used goes mostly to Наименование
+     товара/Поставщик, which need it most for wrapped text. */
+  #itemsTable th:nth-child(1),  #itemsTable td:nth-child(1)  { width: 3%; }
+  #itemsTable th:nth-child(2),  #itemsTable td:nth-child(2)  { width: 19%; }
+  #itemsTable th:nth-child(3),  #itemsTable td:nth-child(3)  { width: 10%; }
+  #itemsTable th:nth-child(4),  #itemsTable td:nth-child(4)  { width: 5%; }
+  #itemsTable th:nth-child(5),  #itemsTable td:nth-child(5)  { width: 5%; }
+  #itemsTable th:nth-child(6),  #itemsTable td:nth-child(6)  { width: 6%; }
+  #itemsTable th:nth-child(7),  #itemsTable td:nth-child(7)  { width: 6%; }
+  #itemsTable th:nth-child(8),  #itemsTable td:nth-child(8)  { width: 8%; }
+  #itemsTable th:nth-child(9),  #itemsTable td:nth-child(9)  { width: 9%; }
+  #itemsTable th:nth-child(10), #itemsTable td:nth-child(10) { width: 9%; }
+  #itemsTable th:nth-child(11), #itemsTable td:nth-child(11) { width: 8%; }
+  #itemsTable th:nth-child(12), #itemsTable td:nth-child(12) { width: 12%; }
+
+  th {
+    background: #eef0f3 !important;
+    color: #111214 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    padding: 4px 3px !important;
+    white-space: normal !important;
+    word-break: break-word;
+  }
+
+  td {
+    padding: 3px !important;
+    white-space: normal !important;
+    word-break: break-word;
+  }
+
+  input, select {
+    border: none !important;
+    background: transparent !important;
+    padding: 1px 2px !important;
+    color: #111214 !important;
+    font-size: 9.5px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .totals-bar { justify-content: flex-start !important; gap: 24px !important; }
+
+  .totals-value {
+    background: #ffffff !important;
+    border: 1px solid #ccc !important;
+    font-size: 12px !important;
+    padding: 3px 8px !important;
+  }
+
+  .btn-add, .combo-add-row { display: none !important; }
+  .cdd-panel, .ac-panel { display: none !important; }
+  .cell-preview { display: none !important; }
+  .cdd-trigger {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-bottom: 1px solid #111214 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 2px 0 !important;
+  }
+  .cdd-trigger::after { content: none !important; }
+
+  .approval-card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 10px 0 0 !important;
+    break-inside: avoid;
+  }
+  .approval-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 10px 24px !important; }
+  .approval-spacer { display: block !important; }
+  .approval-field label { font-size: 9px !important; }
+
+  .approval-card select, .approval-readonly {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-bottom: 1px solid #111214 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 2px 0 !important;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .approval-confirm {
+    font-size: 9px !important;
+    color: #111214 !important;
+    margin-top: 8px !important;
+  }
+}
+
+
+/* ---- link to the admin page (table.html); the admin page itself uses admin.css ---- */
+.admin-link { text-decoration: none; margin-bottom: 12px; }

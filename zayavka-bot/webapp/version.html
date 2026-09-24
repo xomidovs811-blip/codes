@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Versiya</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="css/style.css?v=42" />
+</head>
+<body>
+<div class="page wide">
+
+  <div class="view-toggle-row">
+    <div class="nav-buttons">
+      <button type="button" class="nav-btn" id="navBackBtn" title="Oldingi sahifaga qaytish">⬅️ Orqaga</button>
+      <button type="button" class="nav-btn" id="navForwardBtn" title="Keyingi sahifaga o'tish">Oldinga ➡️</button>
+    </div>
+    <div class="view-toggle">
+      <button type="button" class="view-btn" id="viewDesktopBtn" title="Kompyuter versiyasi">🖥️</button>
+      <button type="button" class="view-btn" id="viewMobileBtn" title="Mobil versiya">📱</button>
+    </div>
+  </div>
+
+  <h1 id="pageTitle">📄 Versiya</h1>
+  <p class="version-meta" id="versionMeta">Yuklanmoqda...</p>
+
+  <div class="summary-card">
+    <div class="summary-fields">
+      <div class="s-field"><span class="s-icon">🏢</span><span class="s-label">Название объекта:</span><span class="s-value" id="hObject">—</span></div>
+      <div class="s-field"><span class="s-icon">📅</span><span class="s-label">Дата:</span><span class="s-value" id="hDate">—</span></div>
+      <div class="s-field"><span class="s-icon">👤</span><span class="s-label">От кого:</span><span class="s-value" id="hFrom">—</span></div>
+      <div class="s-field"><span class="s-icon">🏛️</span><span class="s-label">Кому:</span><span class="s-value" id="hKomu">—</span></div>
+      <div class="s-field"><span class="s-icon">💳</span><span class="s-label">Вид оплаты:</span><span class="s-value" id="hPayment">—</span></div>
+    </div>
+    <div class="number-box">
+      <div class="number-label">📄 Номер заявки</div>
+      <div class="value" id="hNumber">—</div>
+    </div>
+  </div>
+
+  <div class="version-step">
+    <button class="btn btn-secondary" id="prevVerBtn" type="button">◀ Oldingi versiya</button>
+    <button class="btn btn-secondary" id="nextVerBtn" type="button">Keyingi versiya ▶</button>
+    <button class="btn btn-secondary" id="downloadBtn" type="button">📥 Excel yuklab olish</button>
+    <button class="btn btn-secondary" id="sendBtn" type="button">📨 Menga yuborish</button>
+    <button class="btn btn-secondary" id="historyBtn" type="button">🕘 Barcha versiyalar</button>
+  </div>
+
+  <div class="card table-card">
+    <div class="table-wrap">
+      <table id="versionItemsTable">
+        <thead>
+          <tr>
+            <th>т/р</th>
+            <th>Наименование товара</th>
+            <th>Поставщик</th>
+            <th>Блок</th>
+            <th>Этаж</th>
+            <th>Ед.изм</th>
+            <th>Кол-во</th>
+            <th>Цена</th>
+            <th>Общая сумма</th>
+            <th>Аванс получил</th>
+            <th>Остатка</th>
+            <th>Выполняемая работа (сметная группа)</th>
+            <th>Комментарие</th>
+          </tr>
+        </thead>
+        <tbody id="itemsBody"></tbody>
+      </table>
+    </div>
+    <div class="scroll-hint">👉 Jadvalni to'liq ko'rish uchun chapga-o'ngga suring</div>
+  </div>
+
+  <div class="totals-bar">
+    <div class="totals-item">
+      <span class="totals-item-label">Jami summa</span>
+      <span class="totals-value" id="totalSumma">0</span>
+    </div>
+    <div class="totals-item">
+      <span class="totals-item-label">Olingan avans</span>
+      <span class="totals-value totals-orange" id="totalAvans">0</span>
+    </div>
+    <div class="totals-item">
+      <span class="totals-item-label">Ostatka</span>
+      <span class="totals-value totals-green" id="totalQoldiq">0</span>
+    </div>
+  </div>
+
+  <div class="card approval-card">
+    <div class="approval-grid">
+      <div class="approval-field">
+        <label>Инспектор</label>
+        <div class="approval-readonly" id="aInspector">—</div>
+      </div>
+      <div class="approval-field">
+        <label>Кассир</label>
+        <div class="approval-readonly" id="aCashier">—</div>
+      </div>
+      <div class="approval-spacer" aria-hidden="true"></div>
+      <div class="approval-field">
+        <label>Заявитель</label>
+        <div class="approval-readonly" id="aFrom">—</div>
+      </div>
+      <div class="approval-field">
+        <label>Техданзор</label>
+        <div class="approval-readonly" id="aTech">—</div>
+      </div>
+      <div class="approval-field">
+        <label>Директор</label>
+        <div class="approval-readonly" id="aDirector">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/common.js?v=37"></script>
+<script src="js/version.js?v=1"></script>
+</body>
+</html>

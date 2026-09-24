@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Versiyalar tarixi</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="css/style.css?v=42" />
+</head>
+<body>
+<div class="page wide">
+
+  <div class="view-toggle-row">
+    <div class="nav-buttons">
+      <button type="button" class="nav-btn" id="navBackBtn" title="Oldingi sahifaga qaytish">⬅️ Orqaga</button>
+      <button type="button" class="nav-btn" id="navForwardBtn" title="Keyingi sahifaga o'tish">Oldinga ➡️</button>
+    </div>
+    <div class="view-toggle">
+      <button type="button" class="view-btn" id="viewDesktopBtn" title="Kompyuter versiyasi">🖥️</button>
+      <button type="button" class="view-btn" id="viewMobileBtn" title="Mobil versiya">📱</button>
+    </div>
+  </div>
+
+  <h1>🕘 Versiyalar tarixi</h1>
+
+  <div class="summary-card">
+    <div class="summary-fields">
+      <div class="s-field"><span class="s-icon">🏢</span><span class="s-label">Название объекта:</span><span class="s-value" id="hObject">—</span></div>
+      <div class="s-field"><span class="s-icon">📅</span><span class="s-label">Дата:</span><span class="s-value" id="hDate">—</span></div>
+      <div class="s-field"><span class="s-icon">👤</span><span class="s-label">От кого:</span><span class="s-value" id="hFrom">—</span></div>
+      <div class="s-field"><span class="s-icon">🏛️</span><span class="s-label">Кому:</span><span class="s-value" id="hKomu">—</span></div>
+      <div class="s-field"><span class="s-icon">💳</span><span class="s-label">Вид оплаты:</span><span class="s-value" id="hPayment">—</span></div>
+    </div>
+    <div class="number-box">
+      <div class="number-label">📄 Номер заявки</div>
+      <div class="value" id="hNumber">—</div>
+    </div>
+  </div>
+
+  <div class="actions-row" style="margin:0 0 14px;">
+    <button class="btn btn-secondary" id="editBtn" type="button">✏️ Oxirgi versiyani tahrirlash</button>
+  </div>
+
+  <div class="card table-card">
+    <h2 id="versionCount">Yuklanmoqda...</h2>
+    <p class="hint">Forma har safar saqlanganda yangi versiya yaratiladi va Telegramga yuboriladi. Eng yangisi tepada. Qatorni yoki 👁 ni bosing - o'sha versiyada nima yozilganini ko'rasiz; 📥 o'sha paytdagi Excel faylni yuklab oladi, 📨 uni Telegram chatingizga yuboradi.</p>
+    <div class="table-wrap">
+      <table id="versionTable">
+        <thead>
+          <tr>
+            <th>Versiya</th>
+            <th>Holat</th>
+            <th>Sana va vaqt</th>
+            <th>Kim saqlagan</th>
+            <th>Qator</th>
+            <th>Общая сумма</th>
+            <th>Аванс получил</th>
+            <th>Остатка</th>
+            <th>Excel</th>
+          </tr>
+        </thead>
+        <tbody id="versionBody"></tbody>
+      </table>
+    </div>
+    <div class="scroll-hint">👉 Jadvalni to'liq ko'rish uchun chapga-o'ngga suring</div>
+  </div>
+</div>
+
+<script src="js/common.js?v=37"></script>
+<script src="js/history.js?v=2"></script>
+</body>
+</html>

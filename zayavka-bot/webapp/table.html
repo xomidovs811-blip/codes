@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Zayavkalar jadvali</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="css/style.css?v=42" />
+</head>
+<body data-root="1">
+<div class="page wide">
+
+  <div class="view-toggle-row">
+    <div class="nav-buttons">
+      <button type="button" class="nav-btn" id="navBackBtn" title="Oldingi sahifaga qaytish">⬅️ Orqaga</button>
+      <button type="button" class="nav-btn" id="navForwardBtn" title="Keyingi sahifaga o'tish">Oldinga ➡️</button>
+    </div>
+    <div class="view-toggle">
+      <button type="button" class="view-btn" id="viewDesktopBtn" title="Kompyuter versiyasi">🖥️</button>
+      <button type="button" class="view-btn" id="viewMobileBtn" title="Mobil versiya">📱</button>
+    </div>
+  </div>
+
+  <p class="hint" style="margin-top:0;margin-bottom:12px;">Zayavka berish endi bot chatida, bosqichma-bosqich amalga oshiriladi (/zayavka).</p>
+
+  <h1>📋 Zayavkalar jadvali</h1>
+  <p class="hint" id="whoami" style="margin-top:-8px;margin-bottom:12px;"></p>
+  <a class="btn btn-secondary admin-link" id="adminLink" href="admin.html?v=6" style="display:none;">⚙️ Foydalanuvchilar va ruxsatlar</a>
+
+  <div class="card auth-card" id="accessCard" style="display:none;">
+    <h2 style="margin-top:0;" id="accessTitle">⏳ Tasdiqlash kutilmoqda</h2>
+    <p class="hint" id="accessText"></p>
+
+    <div id="requestForm">
+      <div class="auth-tabs" id="authTabs">
+        <button type="button" class="auth-tab active" data-tab="login">🔑 Kirish</button>
+        <button type="button" class="auth-tab" data-tab="register">📝 Ro'yxatdan o'tish</button>
+      </div>
+
+      <div id="loginPane" class="auth-pane">
+        <p class="hint">Administrator sizni ilgari telefon raqamingiz bilan qo'shgan bo'lsa, shu tugma orqali kirish darhol ochiladi.</p>
+        <button type="button" class="btn btn-primary btn-block" id="phoneBtn">📱 Telefon raqamimni yuborish</button>
+      </div>
+
+      <div id="registerPane" class="auth-pane" style="display:none;">
+        <p class="hint">Ilovadan birinchi marta foydalanyapsizmi? Ma'lumotlaringizni kiriting - administrator ko'rib chiqib tasdiqlagach, kirish ochiladi.</p>
+        <div class="field">
+          <label>Ism</label>
+          <input type="text" id="regFirst" maxlength="60" placeholder="Ismingiz" />
+        </div>
+        <div class="field">
+          <label>Familiya</label>
+          <input type="text" id="regLast" maxlength="60" placeholder="Familiyangiz" />
+        </div>
+        <div class="field">
+          <label>Telefon raqami</label>
+          <input type="tel" id="regPhone" inputmode="tel" placeholder="+998 90 123 45 67" />
+        </div>
+        <div class="field">
+          <label>Qaysi shaxs/kanal uchun (ixtiyoriy)</label>
+          <select id="reqPerson"><option value="">Tanlang</option></select>
+        </div>
+        <div class="field">
+          <label>Izoh (ixtiyoriy)</label>
+          <input type="text" id="reqNote" maxlength="300" placeholder="Qo'shimcha ma'lumot" />
+        </div>
+        <button type="button" class="btn btn-primary btn-block" id="reqBtn">✅ Ro'yxatdan o'tish</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="filtersCard">
+    <div class="filters">
+      <div class="field">
+        <label>Название объекта</label>
+        <select id="fObject"><option value="">Barchasi</option></select>
+      </div>
+      <div class="field">
+        <label>От кого</label>
+        <select id="fFrom"><option value="">Barchasi</option></select>
+      </div>
+      <div class="field">
+        <label>Дата (дан)</label>
+        <input type="date" id="fDateFrom" />
+      </div>
+      <div class="field">
+        <label>Дата (гача)</label>
+        <input type="date" id="fDateTo" />
+      </div>
+      <div class="field" id="fCreatorField" style="display:none;">
+        <label>Yuborgan</label>
+        <select id="fCreator"><option value="">Barchasi</option></select>
+      </div>
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-primary" id="applyFilters" type="button">Filtrlash</button>
+      <button class="btn btn-secondary" id="clearFilters" type="button">Tozalash</button>
+    </div>
+  </div>
+
+  <div class="card table-card" id="tableCard">
+    <div class="result-head">
+      <h2 id="resultCount">Yuklanmoqda...</h2>
+      <button type="button" class="btn btn-secondary" id="exportBtn">📊 Excelga yuklab olish (Telegramga yuborish)</button>
+    </div>
+    <p class="hint">Qatorni bosing - to'ldirish/tahrirlash formasi ochiladi. 📥 oxirgi versiya Excel faylini yuklab oladi, 📨 uni Telegram chatingizga qayta yuboradi, 🕘 Tarix - barcha eski versiyalar.</p>
+    <div class="table-wrap">
+      <table id="zayavkaTable">
+        <thead>
+          <tr>
+            <th>т/р</th>
+            <th>Номер заявки</th>
+            <th>Дата</th>
+            <th>Название объекта</th>
+            <th>От кого</th>
+            <th id="thCreator">Yuborgan</th>
+            <th>Кому</th>
+            <th>Вид оплаты</th>
+            <th>Qator</th>
+            <th>Общая сумма</th>
+            <th>Аванс получил</th>
+            <th>Остатка</th>
+            <th>Oxirgi yuborilgan</th>
+            <th>Excel (oxirgi versiya)</th>
+          </tr>
+        </thead>
+        <tbody id="zayavkaBody"></tbody>
+        <tfoot id="zayavkaFoot"></tfoot>
+      </table>
+    </div>
+    <div class="scroll-hint">👉 Jadvalni to'liq ko'rish uchun chapga-o'ngga suring</div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="exportModalBackdrop">
+  <div class="modal">
+    <button type="button" class="modal-close" id="exportModalClose">✕</button>
+    <h2 style="margin-top:0;">Excelni Telegramga yuborish</h2>
+    <div class="export-summary" id="exportSummary"></div>
+    <div class="export-status" id="exportStatus"></div>
+    <button class="btn btn-primary" id="exportConfirmBtn" type="button">✅ Yuborish</button>
+    <button class="btn btn-secondary btn-block" id="exportCancelBtn" type="button">Bekor qilish</button>
+  </div>
+</div>
+
+<script src="js/common.js?v=37"></script>
+<script src="js/table.js?v=38"></script>
+</body>
+</html>

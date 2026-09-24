@@ -1,0 +1,15 @@
+[Unit]
+Description=Zayavka API + Mini App (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=__APP_USER__
+WorkingDirectory=__APP_DIR__
+Environment=PORT=8000
+ExecStart=__APP_DIR__/.venv/bin/python run_api.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

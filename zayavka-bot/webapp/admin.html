@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Foydalanuvchilar va Ruxsatlar</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="css/style.css?v=42" />
+<link rel="stylesheet" href="css/admin.css?v=8" />
+</head>
+<body data-admin="1">
+<div class="page wide am" id="am">
+
+  <div class="view-toggle-row">
+    <div class="nav-buttons">
+      <button type="button" class="nav-btn" id="navBackBtn" title="Oldingi sahifaga qaytish">⬅️ Orqaga</button>
+      <button type="button" class="nav-btn" id="navForwardBtn" title="Keyingi sahifaga o'tish">Oldinga ➡️</button>
+    </div>
+    <div class="view-toggle">
+      <button type="button" class="view-btn" id="viewDesktopBtn" title="Kompyuter versiyasi">🖥️</button>
+      <button type="button" class="view-btn" id="viewMobileBtn" title="Mobil versiya">📱</button>
+    </div>
+  </div>
+
+  <header class="am-top">
+    <div class="am-brand">
+      <span class="am-brand-ic" id="amBrandIc"></span>
+      <div>
+        <h1>Foydalanuvchilar va Ruxsatlar</h1>
+        <p class="am-sub" id="amStatus">Yuklanmoqda...</p>
+      </div>
+    </div>
+    <button type="button" class="am-btn am-btn-primary am-add" data-act="open-add"></button>
+  </header>
+
+  <div id="amBody" style="display:none;">
+    <section class="am-reqsec" id="secRequests"></section>
+    <section class="am-reqsec" id="secExtraRequests"></section>
+
+    <div class="am-toolbar">
+      <div class="am-search" id="amSearchBox"></div>
+      <select class="am-in sm" id="amRoleSel"><option value="">Barcha rollar</option></select>
+      <select class="am-in sm" id="amStatusSel"><option value="">Barcha holatlar</option></select>
+    </div>
+
+    <div id="userList"></div>
+    <div class="am-pager" id="amPager"></div>
+  </div>
+
+  <div class="modal-backdrop am-modal-backdrop" id="addBackdrop">
+    <div class="modal" id="addModal"></div>
+  </div>
+</div>
+
+<script src="js/common.js?v=37"></script>
+<script src="js/admin.js?v=8"></script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Zayavka berish</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="css/style.css?v=4" />
+</head>
+<body>
+<div class="page">
+
+  <div class="tabs">
+    <a class="active" href="index.html">📝 Berish</a>
+    <a href="table.html">📋 Jadval</a>
+    <a href="search.html">🔎 Qidirish</a>
+  </div>
+
+  <h1>📝 Zayavka berish</h1>
+
+  <div class="card">
+    <div class="form-grid">
+      <div>
+        <div class="field">
+          <label>Название объекта</label>
+          <select id="objectName"></select>
+        </div>
+        <div class="field">
+          <label>Дата</label>
+          <input type="date" id="zayavkaDate" />
+        </div>
+        <div class="field">
+          <label>От кого</label>
+          <select id="fromWhom"></select>
+        </div>
+        <div class="field">
+          <label>Кому</label>
+          <input type="text" id="toWhom" readonly />
+        </div>
+        <div class="field">
+          <label>Вид оплаты</label>
+          <input type="text" id="paymentType" readonly />
+        </div>
+      </div>
+      <div>
+        <h2>Номер заявки</h2>
+        <div class="number-box">
+          <div class="value" id="numberPreview">—</div>
+        </div>
+        <p class="hint">Kod avtomatik hisoblanadi: kun-oy-yil-obyekt-ismi-summasi (1-qator)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Tovarlar / ishlar ro'yxati</h2>
+    <div class="table-wrap">
+      <table id="itemsTable">
+        <thead>
+          <tr>
+            <th>т/р</th>
+            <th>Наименование товара</th>
+            <th>Поставщик</th>
+            <th>Блок</th>
+            <th>Этаж</th>
+            <th>Ед.изм</th>
+            <th>Кол-во</th>
+            <th>Цена</th>
+            <th>Общая сумма</th>
+            <th>Аванс получил</th>
+            <th>Остатка</th>
+            <th>Выполняемая работа (сметная группа)</th>
+            <th>Комментарие</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="itemsBody"></tbody>
+      </table>
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-secondary" id="addRowBtn" type="button">➕ Qator qo'shish</button>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="submitBtn" type="button">✅ Yuborish</button>
+</div>
+
+<script src="js/common.js?v=4"></script>
+<script src="js/form.js?v=4"></script>
+</body>
+</html>
