@@ -6,3 +6,6 @@
 __pycache__/
 *.pyc
 .venv/
+deploy/windows/caddy.exe
+deploy/windows/Caddyfile
+logs/
