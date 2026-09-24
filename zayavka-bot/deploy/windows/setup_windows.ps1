@@ -8,12 +8,17 @@
 #           <server-public-ip-with-dashes>.sslip.io (free, points to your IP).
 #           Ports 80 and 443 must be reachable from the internet.
 # Safe to re-run: it updates everything and restarts.
+#   ... setup_windows.ps1 -Cloudflare
+# -Cloudflare : free Cloudflare quick tunnel (https://xxxx.trycloudflare.com). No domain,
+#               router or admin access to other apps needed. The address changes after a
+#               restart; tunnel.ps1 updates .env and restarts the bot automatically.
 #   ... setup_windows.ps1 -Tailscale
 # -Tailscale : publish the Mini App through Tailscale Funnel instead of Caddy:
 #              https://<machine>.<tailnet>.ts.net:8443 - no router/port setup needed.
 param(
     [string]$Domain = "",
-    [switch]$Tailscale
+    [switch]$Tailscale,
+    [switch]$Cloudflare
 )
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -93,12 +98,23 @@ if ($Tailscale) {
         Unregister-ScheduledTask -TaskName "Zayavka Caddy" -Confirm:$false
     }
 }
+if ($Cloudflare) {
+    $Domain = ""
+    Write-Step "Setting up Cloudflare quick tunnel -> 127.0.0.1:8010"
+    if (-not (Test-Path "$here\cloudflared.exe")) {
+        Invoke-WebRequest "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "$here\cloudflared.exe" -UseBasicParsing
+    }
+    if (Get-ScheduledTask -TaskName "Zayavka Caddy" -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName "Zayavka Caddy" -Confirm:$false
+    }
+    $tasks = $tasks + @("Zayavka Tunnel")
+}
 if ($Domain -eq "auto") {
     $ip = (Invoke-RestMethod "https://api.ipify.org" -UseBasicParsing).ToString().Trim()
     $Domain = ($ip -replace '\.', '-') + ".sslip.io"
     Write-Host "    Public IP $ip -> $Domain"
 }
-if (-not $Domain -and -not $Tailscale) {
+if (-not $Domain -and -not $Tailscale -and -not $Cloudflare) {
     Write-Host "    No -Domain given: Mini App pages keep the old WEBAPP_URL from .env" -ForegroundColor Yellow
 }
 if ($Domain) {
@@ -125,14 +141,18 @@ $settings  = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero)
              -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
 $trigger   = New-ScheduledTaskTrigger -AtStartup
 foreach ($t in $tasks) {
-    $action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$here\$($bats[$t])`"" -WorkingDirectory $AppDir
+    if ($t -eq "Zayavka Tunnel") {
+        $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$here\tunnel.ps1`"" -WorkingDirectory $AppDir
+    } else {
+        $action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$here\$($bats[$t])`"" -WorkingDirectory $AppDir
+    }
     Register-ScheduledTask -TaskName $t -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
 }
 
 # ---------- 6. Start ----------
 Write-Step "Starting"
 & "$here\manage.ps1" start
-Start-Sleep 15
+Start-Sleep 25
 & "$here\manage.ps1" status
 
 $url = ([IO.File]::ReadAllText("$AppDir\.env") | Select-String '(?m)^WEBAPP_URL=(.*)$').Matches[0].Groups[1].Value

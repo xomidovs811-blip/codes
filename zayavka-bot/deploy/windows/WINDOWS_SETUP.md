@@ -37,6 +37,16 @@ writes the new `WEBAPP_URL` into `.env` and starts everything. At the end, open 
 
 > If your hosting provider has its own firewall or "security group" panel, open TCP **80** and **443** there too.
 
+### No domain, ports taken, server behind a router: Cloudflare quick tunnel (used on the ZARMED server)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\windows\setup_windows.ps1 -Cloudflare
+```
+
+This gives a free `https://xxxx.trycloudflare.com` address. It changes whenever the tunnel restarts (for example
+after a reboot). `tunnel.ps1` then writes the new address into `.env` and restarts the bot, which re-points
+its buttons, so nothing needs doing by hand.
+
 ### If ports 80/443 are taken or the server is behind a router: use Tailscale Funnel
 
 ```powershell

@@ -9,3 +9,4 @@ __pycache__/
 deploy/windows/caddy.exe
 deploy/windows/Caddyfile
 logs/
+deploy/windows/cloudflared.exe
