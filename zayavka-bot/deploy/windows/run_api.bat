@@ -4,6 +4,8 @@ cd /d "%~dp0..\.."
 if not exist logs mkdir logs
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
+rem 8000 is taken by another app on this server.
+set PORT=8010
 :loop
 ".venv\Scripts\python.exe" run_api.py >> logs\api.log 2>&1
 ping -n 6 127.0.0.1 >nul

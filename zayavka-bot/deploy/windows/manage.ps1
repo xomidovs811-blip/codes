@@ -35,7 +35,7 @@ switch ($Action) {
     "logs"    {
         foreach ($f in "bot.log", "api.log", "caddy.log") {
             $p = Join-Path $AppDir "logs\$f"
-            if (Test-Path $p) { Write-Host "===== $f" -ForegroundColor Cyan; Get-Content $p -Tail 15 }
+            if (Test-Path $p) { Write-Host "===== $f" -ForegroundColor Cyan; Get-Content $p -Tail 15 -Encoding UTF8 }
         }
     }
     "status"  {
@@ -47,8 +47,8 @@ switch ($Action) {
                  Where-Object { $_.CommandLine -match 'run_(api|bot)\.py|caddy' }
         Write-Host ("Running processes: " + (($procs | ForEach-Object { if ($_.CommandLine -match 'run_(api|bot)\.py') { $matches[0] } else { 'caddy' } } | Select-Object -Unique) -join ', '))
         try {
-            $r = Invoke-WebRequest "http://127.0.0.1:8000/table.html" -UseBasicParsing -TimeoutSec 5
+            $r = Invoke-WebRequest "http://127.0.0.1:8010/table.html" -UseBasicParsing -TimeoutSec 5
             Write-Host "API check: OK ($($r.StatusCode))" -ForegroundColor Green
-        } catch { Write-Host "API check: NOT responding on port 8000" -ForegroundColor Red }
+        } catch { Write-Host "API check: NOT responding on port 8010" -ForegroundColor Red }
     }
 }

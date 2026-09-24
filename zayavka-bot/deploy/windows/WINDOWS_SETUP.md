@@ -5,7 +5,7 @@ and each restarts itself if it crashes:
 
 | Task            | What it does                                               |
 |-----------------|------------------------------------------------------------|
-| `Zayavka API`   | Mini App pages + `/api/...` on port 8000                   |
+| `Zayavka API`   | Mini App pages + `/api/...` on port 8010 (8000 is used by another app) |
 | `Zayavka Bot`   | Telegram bot                                               |
 | `Zayavka Caddy` | Permanent `https://` address with a free SSL certificate   |
 
@@ -36,6 +36,15 @@ writes the new `WEBAPP_URL` into `.env` and starts everything. At the end, open 
 `.../table.html` address in a browser. It should load a page.
 
 > If your hosting provider has its own firewall or "security group" panel, open TCP **80** and **443** there too.
+
+### If ports 80/443 are taken or the server is behind a router: use Tailscale Funnel
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\windows\setup_windows.ps1 -Tailscale
+```
+
+This publishes the Mini App at `https://<machine>.<tailnet>.ts.net:8443`, with no port forwarding needed.
+The first time, Tailscale may print a link for enabling Funnel. Open it and approve.
 
 ## 4. Update the Mini App URLs in @BotFather (one time)
 

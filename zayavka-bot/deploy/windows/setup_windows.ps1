@@ -8,8 +8,12 @@
 #           <server-public-ip-with-dashes>.sslip.io (free, points to your IP).
 #           Ports 80 and 443 must be reachable from the internet.
 # Safe to re-run: it updates everything and restarts.
+#   ... setup_windows.ps1 -Tailscale
+# -Tailscale : publish the Mini App through Tailscale Funnel instead of Caddy:
+#              https://<machine>.<tailnet>.ts.net:8443 - no router/port setup needed.
 param(
-    [string]$Domain = ""
+    [string]$Domain = "",
+    [switch]$Tailscale
 )
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -64,12 +68,37 @@ if ($LASTEXITCODE -ne 0) { throw "pip install failed." }
 # ---------- 4. HTTPS via Caddy ----------
 $utf8 = New-Object System.Text.UTF8Encoding($false)   # no BOM - a BOM would break .env
 $tasks = @("Zayavka API", "Zayavka Bot")
+function Set-WebappUrl($url) {
+    $envText = [IO.File]::ReadAllText("$AppDir\.env")
+    if ($envText -match '(?m)^WEBAPP_URL=') {
+        $envText = $envText -replace '(?m)^WEBAPP_URL=.*$', "WEBAPP_URL=$url"
+    } else {
+        $envText = $envText.TrimEnd() + "`r`nWEBAPP_URL=$url`r`n"
+    }
+    [IO.File]::WriteAllText("$AppDir\.env", $envText, $utf8)
+}
+
+if ($Tailscale) {
+    $Domain = ""
+    Write-Step "Publishing via Tailscale Funnel (port 8443 -> 127.0.0.1:8010)"
+    $ts = "C:\Program Files\Tailscale\tailscale.exe"
+    if (-not (Test-Path $ts)) { throw "Tailscale not found at $ts" }
+    Write-Host "    If it prints a login.tailscale.com link, open it, click Enable, and this continues." -ForegroundColor Yellow
+    & $ts funnel --bg --https=8443 http://127.0.0.1:8010
+    if ($LASTEXITCODE -ne 0) { throw "tailscale funnel failed (see message above)." }
+    $dns = ((& $ts status --json | Out-String) | ConvertFrom-Json).Self.DNSName.TrimEnd('.')
+    Set-WebappUrl "https://${dns}:8443"
+    # Caddy is not used in this mode.
+    if (Get-ScheduledTask -TaskName "Zayavka Caddy" -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName "Zayavka Caddy" -Confirm:$false
+    }
+}
 if ($Domain -eq "auto") {
     $ip = (Invoke-RestMethod "https://api.ipify.org" -UseBasicParsing).ToString().Trim()
     $Domain = ($ip -replace '\.', '-') + ".sslip.io"
     Write-Host "    Public IP $ip -> $Domain"
 }
-if (-not $Domain) {
+if (-not $Domain -and -not $Tailscale) {
     Write-Host "    No -Domain given: Mini App pages keep the old WEBAPP_URL from .env" -ForegroundColor Yellow
 }
 if ($Domain) {
@@ -78,19 +107,13 @@ if ($Domain) {
     if (-not (Test-Path "$here\caddy.exe")) {
         Invoke-WebRequest "https://caddyserver.com/api/download?os=windows&arch=amd64" -OutFile "$here\caddy.exe" -UseBasicParsing
     }
-    [IO.File]::WriteAllText("$here\Caddyfile", "$Domain {`r`n    reverse_proxy 127.0.0.1:8000`r`n}`r`n", $utf8)
+    [IO.File]::WriteAllText("$here\Caddyfile", "$Domain {`r`n    reverse_proxy 127.0.0.1:8010`r`n}`r`n", $utf8)
     foreach ($p in 80, 443) {
         if (-not (Get-NetFirewallRule -DisplayName "Zayavka HTTPS $p" -ErrorAction SilentlyContinue)) {
             New-NetFirewallRule -DisplayName "Zayavka HTTPS $p" -Direction Inbound -Protocol TCP -LocalPort $p -Action Allow | Out-Null
         }
     }
-    $envText = [IO.File]::ReadAllText("$AppDir\.env")
-    if ($envText -match '(?m)^WEBAPP_URL=') {
-        $envText = $envText -replace '(?m)^WEBAPP_URL=.*$', "WEBAPP_URL=https://$Domain"
-    } else {
-        $envText = $envText.TrimEnd() + "`r`nWEBAPP_URL=https://$Domain`r`n"
-    }
-    [IO.File]::WriteAllText("$AppDir\.env", $envText, $utf8)
+    Set-WebappUrl "https://$Domain"
     $tasks = @("Zayavka Caddy") + $tasks
 }
 

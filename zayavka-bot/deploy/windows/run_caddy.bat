@@ -1,5 +1,5 @@
 @echo off
-rem HTTPS front door: https://<domain> -> http://127.0.0.1:8000 (free Let's Encrypt certificate).
+rem HTTPS front door: https://<domain> -> http://127.0.0.1:8010 (free Let's Encrypt certificate).
 cd /d "%~dp0"
 if not exist ..\..\logs mkdir ..\..\logs
 :loop
