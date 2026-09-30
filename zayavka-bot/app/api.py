@@ -1201,5 +1201,17 @@ def admin_delete_user(
     return _admin_list(db, actor)
 
 
+class NoCacheStaticFiles(StaticFiles):
+    """Telegram's in-app browser otherwise keeps using an old copy of a page
+    (and so the old ?v=... js/css it links) long after the file changed on
+    disk. "no-cache" still allows caching, but makes it check with the server
+    first, so an edited page shows up on the next open."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 # Serve the mini app static files (index.html, table.html, search.html, css, js)
-app.mount("/", StaticFiles(directory=str(WEBAPP_DIR), html=True), name="webapp")
+app.mount("/", NoCacheStaticFiles(directory=str(WEBAPP_DIR), html=True), name="webapp")
