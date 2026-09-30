@@ -636,64 +636,14 @@ function addRow(existing) {
  * whole reason this exists - copy the message once, paste it here once, and
  * every line becomes a row instead of retyping each one by hand.
  *
- * Each line is one item. If it has TAB or "|" characters, each piece between
- * them is classified: a number becomes Кол-во then Цена (in that order), a
- * piece that matches an existing Поставщик/Ед.изм/Сметная группа name (case-
- * insensitively) goes to that column, and anything else becomes the product
- * name (a second leftover piece becomes the comment). A line with no TAB/"|"
- * is treated as free text: up to its first two numbers become Кол-во/Цена
- * and the rest of the line (numbers removed) becomes the product name - so
- * even an unstructured line like "Sement 10 qop 45000" still helps.
+ * Each line is one item, kept exactly as written: the whole line goes into
+ * Наименование товара and nothing is split into other columns (numbers,
+ * TAB or "|" included; TABs become spaces) - the user fills Кол-во, Цена etc. by hand.
  */
-function isNumberToken(s) {
-  return /^-?\d[\d\s.,]*$/.test(s.trim());
-}
-
-function toNumberToken(s) {
-  let t = s.trim().replace(/\s+/g, "");
-  if (t.includes(",") && t.includes(".")) t = t.replace(/,/g, "");
-  else if ((t.match(/,/g) || []).length === 1) t = t.replace(",", ".");
-  else t = t.replace(/,/g, "");
-  const n = parseFloat(t);
-  return Number.isNaN(n) ? null : n;
-}
-
 function parsePasteLine(line) {
-  const item = { product_name: null, supplier: null, unit: null, qty: null, price: null, work_type: null, comment: null };
-  const leftover = [];
-
-  const assignCell = (raw) => {
-    const s = raw.trim();
-    if (!s) return;
-    if (isNumberToken(s)) {
-      if (item.qty === null) item.qty = toNumberToken(s);
-      else if (item.price === null) item.price = toNumberToken(s);
-      else leftover.push(s);
-      return;
-    }
-    const low = s.toLowerCase();
-    if (!item.unit && unitList.getList().some((n) => n.toLowerCase() === low)) { item.unit = s; return; }
-    if (!item.supplier && supplierList.getList().some((n) => n.toLowerCase() === low)) { item.supplier = s; return; }
-    if (!item.work_type && workTypeList.getList().some((n) => n.toLowerCase() === low)) { item.work_type = s; return; }
-    if (!item.product_name) item.product_name = s;
-    else leftover.push(s);
-  };
-
-  if (line.includes("\t")) line.split("\t").forEach(assignCell);
-  else if (line.includes("|")) line.split("|").forEach(assignCell);
-  else {
-    let text = line;
-    [...line.matchAll(/-?\d[\d\s.,]*\d|-?\d/g)].slice(0, 2).forEach((m) => {
-      const val = toNumberToken(m[0]);
-      if (item.qty === null) item.qty = val; else if (item.price === null) item.price = val;
-      text = text.replace(m[0], " ");
-    });
-    text = text.replace(/\s{2,}/g, " ").trim();
-    if (text) item.product_name = text;
-  }
-
-  if (leftover.length) item.comment = leftover.join(", ");
-  return (item.product_name || item.qty !== null || item.price !== null) ? item : null;
+  const text = line.replace(/\t+/g, " ").trim();
+  if (!text) return null;
+  return { product_name: text, supplier: null, unit: null, qty: null, price: null, work_type: null, comment: null };
 }
 
 function isRowBlank(tr) {
