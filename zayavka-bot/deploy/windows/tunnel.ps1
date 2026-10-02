@@ -39,13 +39,23 @@ while ($true) {
     if ($url) {
         Add-Content (Join-Path $logDir "tunnel.log") "$(Get-Date -Format s) new address $url"
         $envPath = Join-Path $AppDir ".env"
-        $envText = [IO.File]::ReadAllText($envPath)
-        if ($envText -match '(?m)^WEBAPP_URL=') {
-            $envText = $envText -replace '(?m)^WEBAPP_URL=.*$', "WEBAPP_URL=$url"
-        } else {
-            $envText = $envText.TrimEnd() + "`r`nWEBAPP_URL=$url`r`n"
+        # A failed write used to go unnoticed and leave the bot on a dead address -
+        # retry a few times and log the reason if it still fails.
+        for ($try = 1; $try -le 5; $try++) {
+            try {
+                $envText = [IO.File]::ReadAllText($envPath)
+                if ($envText -match '(?m)^WEBAPP_URL=') {
+                    $envText = $envText -replace '(?m)^WEBAPP_URL=.*$', "WEBAPP_URL=$url"
+                } else {
+                    $envText = $envText.TrimEnd() + "`r`nWEBAPP_URL=$url`r`n"
+                }
+                [IO.File]::WriteAllText($envPath, $envText, $utf8)
+                break
+            } catch {
+                Add-Content (Join-Path $logDir "tunnel.log") "$(Get-Date -Format s) could not write .env (try $try): $($_.Exception.Message)"
+                Start-Sleep 3
+            }
         }
-        [IO.File]::WriteAllText($envPath, $envText, $utf8)
         Start-Sleep 5   # let the new hostname become reachable
         Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
             Where-Object { $_.CommandLine -match 'run_bot\.py' } |
