@@ -6,6 +6,15 @@
 param([ValidateSet("start", "stop", "restart", "status", "logs")][string]$Action = "status")
 $ErrorActionPreference = "Continue"
 
+# The tasks run as SYSTEM: without admin rights they can't be seen, stopped or
+# started, and everything below would silently do nothing.
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin -and $Action -ne "logs") {
+    Write-Host "Not running as administrator - nothing was done." -ForegroundColor Red
+    Write-Host "Open PowerShell with right-click -> 'Run as administrator' and run this again." -ForegroundColor Red
+    exit 1
+}
+
 $here   = Split-Path -Parent $MyInvocation.MyCommand.Path
 $AppDir = (Resolve-Path (Join-Path $here "..\..")).Path
 $names  = @("Zayavka Caddy", "Zayavka API", "Zayavka Bot", "Zayavka Tunnel")
