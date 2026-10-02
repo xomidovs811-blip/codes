@@ -3,6 +3,10 @@
 #   1. writes the new address into .env as WEBAPP_URL
 #   2. restarts the bot process (the run_bot.bat loop starts it again within seconds),
 #      and the bot re-points all its Mini App buttons to the new address on startup.
+# Cloudflare can also drop a quick tunnel on its side while cloudflared keeps
+# running (the address then stops resolving: ERR_NAME_NOT_RESOLVED). So every
+# 2 minutes the public address is checked from here; after 3 failed checks in
+# a row cloudflared is restarted, which gives a new, working address.
 $here   = Split-Path -Parent $MyInvocation.MyCommand.Path
 $AppDir = (Resolve-Path (Join-Path $here "..\..")).Path
 $cf     = Join-Path $here "cloudflared.exe"
@@ -50,6 +54,25 @@ while ($true) {
         Add-Content (Join-Path $logDir "tunnel.log") "$(Get-Date -Format s) could not get an address: $(Read-Shared $cur)"
     }
 
-    if (-not $p.HasExited) { $p.WaitForExit() }
+    # Watch the tunnel: restart it if it exits or its address stops working.
+    $fails = 0
+    Start-Sleep 60
+    while (-not $p.HasExited) {
+        $ok = $false
+        if ($url) {
+            try {
+                Clear-DnsClientCache -ErrorAction SilentlyContinue   # don't trust a cached "not found"
+                $r = Invoke-WebRequest "$url/table.html" -UseBasicParsing -TimeoutSec 20
+                $ok = ($r.StatusCode -eq 200)
+            } catch { $ok = $false }
+        }
+        if ($ok) { $fails = 0 } else { $fails++ }
+        if ($fails -ge 3) {
+            Add-Content (Join-Path $logDir "tunnel.log") "$(Get-Date -Format s) $url not reachable 3 times - restarting tunnel"
+            & taskkill /PID $p.Id /T /F 2>$null | Out-Null
+            break
+        }
+        Start-Sleep 120
+    }
     Start-Sleep 5
 }
