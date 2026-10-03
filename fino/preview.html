@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fino | Dashboard</title>
+
+  <!-- Google Fonts: Manrope (sarlavhalar), Inter (matn), JetBrains Mono (raqamlar) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <style>
+    :root {
+      /* Moliya uchun ranglar: chuqur navy + zumrad yashil + oltin aksent */
+      --navy-900: #071A33;
+      --navy-800: #0B2545;
+      --navy-700: #13315C;
+      --navy-600: #1D4273;
+      --emerald:  #10B981;
+      --emerald-d:#059669;
+      --gold:     #E0A526;
+      --danger:   #E5484D;
+      --info:     #3B82F6;
+
+      --bg:       #F3F6FA;
+      --surface:  #FFFFFF;
+      --border:   #E3E8EF;
+      --text:     #1A2433;
+      --muted:    #64748B;
+
+      --sidebar-w: 260px;
+      --sidebar-w-collapsed: 78px;
+      --header-h: 68px;
+      --radius: 12px;
+      --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 12px rgba(16,24,40,.06);
+      --ease: .25s cubic-bezier(.4,0,.2,1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    h1, h2, h3, h4 { font-family: 'Manrope', sans-serif; color: var(--navy-800); }
+    .num { font-family: 'JetBrains Mono', monospace; }
+
+    /* ================= SIDEBAR ================= */
+    .sidebar {
+      position: fixed; inset: 0 auto 0 0;
+      width: var(--sidebar-w);
+      background: linear-gradient(180deg, var(--navy-900) 0%, var(--navy-800) 100%);
+      color: #C9D6E8;
+      display: flex; flex-direction: column;
+      z-index: 50;
+      transition: width var(--ease), transform var(--ease);
+    }
+    .brand {
+      height: var(--header-h);
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 22px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+    .brand-logo {
+      flex: 0 0 38px; height: 38px; border-radius: 10px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, var(--emerald), var(--emerald-d));
+      color: #fff; font-size: 18px;
+      box-shadow: 0 4px 14px rgba(16,185,129,.35);
+    }
+    .brand-name {
+      font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 22px;
+      color: #fff; letter-spacing: .5px; white-space: nowrap;
+    }
+    .brand-name span { color: var(--gold); }
+    .brand-sub { display: block; font-size: 11px; font-weight: 500; color: #8FA3BF; letter-spacing: .3px; font-family: 'Inter', sans-serif; }
+
+    .nav { flex: 1; overflow-y: auto; padding: 18px 14px; }
+    .nav-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+      color: #6F85A6; padding: 0 12px; margin: 6px 0 10px; white-space: nowrap;
+    }
+    .nav-link {
+      position: relative;
+      display: flex; align-items: center; gap: 14px;
+      padding: 11px 14px; margin-bottom: 4px;
+      border-radius: 10px;
+      font-weight: 500; white-space: nowrap;
+      transition: background var(--ease), color var(--ease);
+    }
+    .nav-link i { width: 20px; text-align: center; font-size: 16px; color: #8FA3BF; transition: color var(--ease); }
+    .nav-link:hover { background: rgba(255,255,255,.06); color: #fff; }
+    .nav-link:hover i { color: #fff; }
+    .nav-link.active { background: rgba(16,185,129,.14); color: #fff; }
+    .nav-link.active i { color: var(--emerald); }
+    .nav-link.active::before {
+      content: ''; position: absolute; left: -14px; top: 8px; bottom: 8px;
+      width: 4px; border-radius: 0 4px 4px 0; background: var(--emerald);
+    }
+
+    .sidebar-footer { padding: 14px; border-top: 1px solid rgba(255,255,255,.07); }
+    .sidebar-card {
+      background: rgba(255,255,255,.05); border-radius: 10px; padding: 12px 14px;
+      display: flex; align-items: center; gap: 12px; white-space: nowrap; overflow: hidden;
+    }
+    .sidebar-card i { color: var(--gold); font-size: 18px; }
+    .sidebar-card small { display: block; color: #8FA3BF; font-size: 11px; }
+    .sidebar-card strong { color: #fff; font-size: 13px; }
+
+    /* Collapsed sidebar (desktop) */
+    body.collapsed .sidebar { width: var(--sidebar-w-collapsed); }
+    body.collapsed .brand { padding: 0 20px; }
+    body.collapsed .brand-name,
+    body.collapsed .nav-label,
+    body.collapsed .nav-link span,
+    body.collapsed .sidebar-card div { display: none; }
+    body.collapsed .nav-link { justify-content: center; padding: 12px 0; }
+    body.collapsed .sidebar-card { justify-content: center; }
+    body.collapsed .main { margin-left: var(--sidebar-w-collapsed); }
+    /* Tooltip for collapsed mode */
+    body.collapsed .nav-link:hover::after {
+      content: attr(data-title);
+      position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
+      background: var(--navy-900); color: #fff; padding: 6px 10px; border-radius: 6px;
+      font-size: 12px; box-shadow: var(--shadow);
+    }
+
+    /* ================= MAIN / HEADER ================= */
+    .main {
+      margin-left: var(--sidebar-w);
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      transition: margin-left var(--ease);
+    }
+    .header {
+      position: sticky; top: 0; z-index: 40;
+      height: var(--header-h);
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 28px;
+    }
+    .icon-btn {
+      width: 40px; height: 40px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--surface);
+      display: grid; place-items: center; cursor: pointer;
+      color: var(--navy-700); font-size: 16px; position: relative;
+      transition: background var(--ease), border-color var(--ease);
+    }
+    .icon-btn:hover { background: #EEF3F9; border-color: #CFD8E3; }
+    .icon-btn .dot {
+      position: absolute; top: 8px; right: 9px; width: 8px; height: 8px;
+      background: var(--danger); border-radius: 50%; border: 2px solid #fff;
+    }
+    .page-heading h1 { font-size: 20px; line-height: 1.2; }
+    .breadcrumb { font-size: 12px; color: var(--muted); }
+    .breadcrumb a:hover { color: var(--emerald-d); }
+    .breadcrumb i { font-size: 9px; margin: 0 6px; }
+
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .search {
+      position: relative; width: 260px;
+    }
+    .search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+    .search input {
+      width: 100%; height: 40px; padding: 0 14px 0 40px;
+      border: 1px solid var(--border); border-radius: 10px;
+      font: inherit; background: var(--bg); outline: none;
+      transition: border-color var(--ease), box-shadow var(--ease), background var(--ease);
+    }
+    .search input:focus { border-color: var(--emerald); background: #fff; box-shadow: 0 0 0 3px rgba(16,185,129,.15); }
+
+    .user { position: relative; }
+    .user-btn {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      padding: 4px 10px 4px 4px; border-radius: 10px; border: 1px solid transparent;
+      background: none; font: inherit; color: inherit;
+    }
+    .user-btn:hover { background: var(--bg); border-color: var(--border); }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--navy-700), var(--navy-600));
+      color: #fff; display: grid; place-items: center; font-weight: 700; font-family: 'Manrope', sans-serif;
+    }
+    .user-meta { text-align: left; line-height: 1.2; }
+    .user-meta strong { display: block; font-size: 13px; }
+    .user-meta small { color: var(--muted); font-size: 11px; }
+
+    .dropdown {
+      position: absolute; right: 0; top: calc(100% + 8px);
+      min-width: 200px; background: #fff; border: 1px solid var(--border);
+      border-radius: 10px; box-shadow: 0 12px 32px rgba(16,24,40,.12);
+      padding: 6px; display: none;
+    }
+    .dropdown.open { display: block; }
+    .dropdown a {
+      display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px;
+    }
+    .dropdown a:hover { background: var(--bg); }
+    .dropdown a i { width: 16px; color: var(--muted); }
+    .dropdown hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0; }
+    .dropdown .logout, .dropdown .logout i { color: var(--danger); }
+
+    /* ================= CONTENT ================= */
+    .content { flex: 1; padding: 28px; }
+
+    /* Reusable components for page files */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px;
+    }
+    .grid { display: grid; gap: 20px; }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid transparent;
+      font: 600 14px 'Inter', sans-serif; cursor: pointer;
+      transition: background var(--ease), box-shadow var(--ease);
+    }
+    .btn-primary { background: var(--emerald); color: #fff; }
+    .btn-primary:hover { background: var(--emerald-d); box-shadow: 0 4px 12px rgba(16,185,129,.3); }
+    .btn-outline { background: #fff; border-color: var(--border); color: var(--navy-700); }
+    .btn-outline:hover { background: var(--bg); }
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .form-group label { font-weight: 600; font-size: 13px; color: var(--navy-700); }
+    .input-icon { position: relative; }
+    .input-icon i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+    .input-icon input, .input-icon select {
+      width: 100%; height: 40px; padding: 0 12px 0 36px;
+      border: 1px solid var(--border); border-radius: 10px; font: inherit; outline: none; background: #fff;
+    }
+    .input-icon input:focus, .input-icon select:focus { border-color: var(--emerald); box-shadow: 0 0 0 3px rgba(16,185,129,.15); }
+
+    /* ================= FOOTER ================= */
+    .footer {
+      border-top: 1px solid var(--border); background: var(--surface);
+      padding: 16px 28px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+      color: var(--muted); font-size: 13px;
+    }
+    .footer strong { color: var(--navy-800); }
+    .footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
+    .footer-links a { display: inline-flex; align-items: center; gap: 6px; }
+    .footer-links a:hover, .footer-links a.active { color: var(--emerald-d); }
+
+    /* ================= LOADER ================= */
+    .loader {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(243,246,250,.75); backdrop-filter: blur(2px);
+      display: none; place-items: center;
+    }
+    .loader.show { display: grid; }
+    .spinner {
+      width: 46px; height: 46px; border-radius: 50%;
+      border: 4px solid #D6E0EC; border-top-color: var(--emerald);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .overlay { position: fixed; inset: 0; background: rgba(7,26,51,.45); z-index: 45; display: none; }
+
+    /* ================= RESPONSIVE ================= */
+    @media (max-width: 1100px) {
+      .grid-4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .search { width: 200px; }
+    }
+    @media (max-width: 860px) {
+      .sidebar { transform: translateX(-100%); width: var(--sidebar-w) !important; }
+      body.sidebar-open .sidebar { transform: none; }
+      body.sidebar-open .overlay { display: block; }
+      .main, body.collapsed .main { margin-left: 0; }
+      body.collapsed .brand-name, body.collapsed .nav-label,
+      body.collapsed .nav-link span, body.collapsed .sidebar-card div { display: initial; }
+      body.collapsed .nav-link { justify-content: flex-start; padding: 11px 14px; }
+      .search, .user-meta, .breadcrumb { display: none; }
+      .header, .content, .footer { padding-left: 16px; padding-right: 16px; }
+      .grid-2, .grid-4 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="#dashboard" data-page="dashboard">
+      <div class="brand-logo"><i class="fa-solid fa-building-columns"></i></div>
+      <div class="brand-name">Fino<span>.</span>
+        <span class="brand-sub">Qurilish moliyasi</span>
+      </div>
+    </a>
+
+    <nav class="nav">
+      <div class="nav-label">Asosiy menyu</div>
+      
+        <a href="#dashboard"
+           class="nav-link active"
+           data-page="dashboard" data-title="Dashboard">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Dashboard</span>
+        </a>
+      
+        <a href="#xodimlar"
+           class="nav-link "
+           data-page="xodimlar" data-title="Xodimlar">
+          <i class="fa-solid fa-users"></i>
+          <span>Xodimlar</span>
+        </a>
+      
+        <a href="#sozlamalar"
+           class="nav-link "
+           data-page="sozlamalar" data-title="Sozlamalar">
+          <i class="fa-solid fa-gear"></i>
+          <span>Sozlamalar</span>
+        </a>
+      
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-card">
+        <i class="fa-solid fa-calendar-day"></i>
+        <div>
+          <small>Bugun</small>
+          <strong id="todayDate">—</strong>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <!-- ================= MAIN ================= -->
+  <div class="main">
+
+    <!-- HEADER -->
+    <header class="header">
+      <button class="icon-btn" id="menuToggle" title="Menyu">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+
+      <div class="page-heading">
+        <h1>Dashboard</h1>
+        <div class="breadcrumb">
+          <a href="#dashboard" data-page="dashboard"><i class="fa-solid fa-house" style="font-size:11px;margin:0"></i> Fino</a>
+          <i class="fa-solid fa-chevron-right"></i>
+          <span>Dashboard</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="globalSearch" placeholder="Qidirish...">
+        </div>
+        <button class="icon-btn" title="Bildirishnomalar">
+          <i class="fa-regular fa-bell"></i><span class="dot"></span>
+        </button>
+        <a class="icon-btn" href="#sozlamalar" data-page="sozlamalar" title="Sozlamalar">
+          <i class="fa-solid fa-gear"></i>
+        </a>
+
+        <div class="user">
+          <button class="user-btn" id="userBtn">
+            <div class="avatar">A</div>
+            <div class="user-meta">
+              <strong>Administrator</strong>
+              <small>Boshqaruvchi</small>
+            </div>
+            <i class="fa-solid fa-chevron-down" style="font-size:11px;color:var(--muted)"></i>
+          </button>
+          <div class="dropdown" id="userDropdown">
+            
+              <a href="#dashboard" data-page="dashboard">
+                <i class="fa-solid fa-chart-pie"></i>Dashboard
+              </a>
+            
+              <a href="#xodimlar" data-page="xodimlar">
+                <i class="fa-solid fa-users"></i>Xodimlar
+              </a>
+            
+              <a href="#sozlamalar" data-page="sozlamalar">
+                <i class="fa-solid fa-gear"></i>Sozlamalar
+              </a>
+            
+            <hr>
+            <a href="#" class="logout"><i class="fa-solid fa-right-from-bracket"></i>Chiqish</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- PAGE CONTENT (tanlangan sahifa shu yerga joylanadi) -->
+    <main class="content" id="content">
+      <!-- Dashboard sahifasi: template.html ichiga include() orqali joylanadi -->
+<div class="grid grid-4">
+  <div class="card"><small style="color:var(--muted)"><i class="fa-solid fa-boxes-stacked"></i> Materiallar</small><h2 class="num" style="margin-top:8px">0</h2></div>
+  <div class="card"><small style="color:var(--muted)"><i class="fa-solid fa-warehouse"></i> Ombor</small><h2 class="num" style="margin-top:8px">0</h2></div>
+  <div class="card"><small style="color:var(--muted)"><i class="fa-solid fa-helmet-safety"></i> Ustalar</small><h2 class="num" style="margin-top:8px">0</h2></div>
+  <div class="card"><small style="color:var(--muted)"><i class="fa-solid fa-wallet"></i> Xarajatlar</small><h2 class="num" style="margin-top:8px">0 so'm</h2></div>
+</div>
+<div class="card" style="margin-top:20px">
+  <h3><i class="fa-solid fa-chart-line" style="color:var(--emerald)"></i> Umumiy ko'rinish</h3>
+  <p style="color:var(--muted);margin-top:8px">Dashboard mazmuni keyingi bosqichda qo'shiladi.</p>
+</div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div>&copy; 2026 <strong>Fino</strong> — Qurilish sohasi uchun moliyaviy boshqaruv tizimi</div>
+      <div class="footer-links">
+        
+          <a href="#dashboard" data-page="dashboard"
+             class="active">
+            <i class="fa-solid fa-chart-pie"></i>Dashboard
+          </a>
+        
+          <a href="#xodimlar" data-page="xodimlar"
+             class="">
+            <i class="fa-solid fa-users"></i>Xodimlar
+          </a>
+        
+          <a href="#sozlamalar" data-page="sozlamalar"
+             class="">
+            <i class="fa-solid fa-gear"></i>Sozlamalar
+          </a>
+        
+      </div>
+    </footer>
+  </div>
+
+  <div class="loader" id="loader"><div class="spinner"></div></div>
+
+  <script>
+    (function () {
+      var body = document.body;
+      var MOBILE = 860;
+
+      // Saqlangan sidebar holati (desktop)
+      try { if (localStorage.getItem('fino-collapsed') === '1') body.classList.add('collapsed'); } catch (e) {}
+
+      // Sidebar toggle: desktopda yig'ish, mobilda ochish/yopish
+      document.getElementById('menuToggle').addEventListener('click', function () {
+        if (window.innerWidth <= MOBILE) {
+          body.classList.toggle('sidebar-open');
+        } else {
+          body.classList.toggle('collapsed');
+          try { localStorage.setItem('fino-collapsed', body.classList.contains('collapsed') ? '1' : '0'); } catch (e) {}
+        }
+      });
+      document.getElementById('overlay').addEventListener('click', function () {
+        body.classList.remove('sidebar-open');
+      });
+
+      // Foydalanuvchi menyusi
+      var userBtn = document.getElementById('userBtn');
+      var dropdown = document.getElementById('userDropdown');
+      userBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        dropdown.classList.toggle('open');
+      });
+      document.addEventListener('click', function () { dropdown.classList.remove('open'); });
+
+      // Navigatsiya: barcha [data-page] havolalari web-app URL orqali o'tadi.
+      // Apps Script iframe ichida ishlaydi, shuning uchun window.top ishlatiladi.
+      document.querySelectorAll('a[data-page]').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+          var href = link.getAttribute('href');
+          if (!href || e.ctrlKey || e.metaKey || e.shiftKey) return; // yangi tabda ochishga ruxsat
+          e.preventDefault();
+          document.getElementById('loader').classList.add('show');
+          window.top.location.href = href;
+        });
+      });
+
+      // Bugungi sana
+      var d = new Date();
+      var months = ['yanvar','fevral','mart','aprel','may','iyun','iyul','avgust','sentabr','oktabr','noyabr','dekabr'];
+      document.getElementById('todayDate').textContent = d.getDate() + '-' + months[d.getMonth()] + ', ' + d.getFullYear();
+    })();
+
+    /** Raqamlarni so'm formatida chiqarish uchun umumiy yordamchi (sahifalarda ishlatish uchun). */
+    function formatMoney(n) {
+      return new Intl.NumberFormat('uz-UZ').format(Math.round(Number(n) || 0)) + " so'm";
+    }
+  </script>
+</body>
+</html>
