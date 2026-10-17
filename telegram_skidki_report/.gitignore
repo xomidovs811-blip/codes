@@ -1,4 +1,4 @@
 config.ini
-sent_state.json
+state/
 logs/
 __pycache__/
