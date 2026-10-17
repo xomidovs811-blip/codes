@@ -51,7 +51,7 @@ def load_config(path):
     if not os.path.exists(path):
         sys.exit(f"Config not found: {path}\nCopy config.example.ini to config.ini and fill it in.")
     cp = configparser.ConfigParser(interpolation=None)
-    cp.read(path, encoding="utf-8")
+    cp.read(path, encoding="utf-8-sig")  # tolerate BOM from Notepad/PowerShell
     cfg = {
         "bot_token": os.environ.get("TELEGRAM_BOT_TOKEN") or cp.get("telegram", "bot_token", fallback=""),
         "chat_id": cp.get("telegram", "chat_id"),
