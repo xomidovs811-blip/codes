@@ -97,3 +97,42 @@ class State(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SendStep(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        d = self.dir.name
+        self.day = dt.date(2026, 10, 16)
+        open(os.path.join(d, "Скидки отчёт 2026-10.xlsx"), "wb").close()
+        self.state = os.path.join(d, "state.json")
+        self.cfg = os.path.join(d, "config.ini")
+        with open(self.cfg, "w", encoding="utf-8-sig") as f:
+            f.write(f"[telegram]\nbot_token = 1:x\nchat_id = -100\n[excel]\nreport_folder = {d}\n"
+                    f"[general]\nstate_file = {self.state}\nlog_file = {os.path.join(d, 'logs', 'l.log')}\n")
+        self.sent = []
+        self._orig = sr.send_report
+        sr.send_report = lambda cfg, path, date, text: self.sent.append((os.path.basename(path), text))
+
+    def tearDown(self):
+        sr.send_report = self._orig
+        for h in list(sr.log.handlers):
+            h.close()
+            sr.log.removeHandler(h)
+        self.dir.cleanup()
+
+    def args(self, *extra):
+        return ["--config", self.cfg, "--date", self.day.isoformat(), *extra]
+
+    def test_refuses_when_not_refreshed(self):
+        self.assertEqual(sr.run_send(self.args()), 1)
+        self.assertEqual(self.sent, [])
+
+    def test_sends_saved_text_once(self):
+        sr.mark_refreshed(self.state, self.day, "📊 ОТЧЁТ")
+        self.assertEqual(sr.run_send(self.args()), 0)
+        self.assertEqual(self.sent, [("Скидки отчёт 2026-10.xlsx", "📊 ОТЧЁТ")])
+        self.assertEqual(sr.run_send(self.args()), 0)  # already sent -> no second post
+        self.assertEqual(len(self.sent), 1)
+        self.assertEqual(sr.run_send(self.args("--force")), 0)
+        self.assertEqual(len(self.sent), 2)

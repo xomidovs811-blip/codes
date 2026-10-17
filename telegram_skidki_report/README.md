@@ -28,22 +28,41 @@ If the file for the month does not exist yet, the script copies the previous mon
    - `bot_token`: from @BotFather. It is **only** stored in `config.ini`, which git ignores. Never commit it.
    - `report_folder` / `template_file`: check both paths (see the note below).
    - `admin_chat_id` (optional): your personal chat id, which receives error messages.
-5. Test it by hand:
+5. Test each step by hand:
    ```
-   python skidki_report.py --no-send      # refresh only, check the file
-   python skidki_report.py                # refresh + send
+   python refresh_report.py     # step 1: open, Refresh All, save, exit Excel
+   python send_telegram.py      # step 2: send the file + text to the group
    ```
-6. Run `install_task.bat` once. It creates a daily Task Scheduler job at 09:00. To change the time, edit `/ST` or change it in Task Scheduler.
+6. Create two scheduled tasks and choose the times yourself (see below).
 
 Logs are in `logs\skidki_report.log`.
 
+## The two steps
+
+| File | What it does | Started by |
+|---|---|---|
+| `refresh_report.py` | Opens the monthly file, enables editing, sets yesterday's date, runs Refresh All, waits, saves and closes Excel | `run_refresh.bat` |
+| `send_telegram.py` | Sends the file and the text from the **Telegram** sheet to the group | `run_send.bat` |
+
+Each one is a separate scheduled task, so you can fit both around other jobs on the server. Schedule the send step **after** the refresh step finishes (a refresh takes about 2 minutes).
+
+`send_telegram.py` refuses to send a file that was not refreshed for yesterday, so a failed refresh never sends an old report. It also never posts the same day twice.
+
+```powershell
+$dir = "\\192.168.1.101\Auditor\AUDIT\Скидки\Скидки отчёт\SkidkiReport"
+Register-ScheduledTask -TaskName "Skidki 1 Refresh" -Force -Trigger (New-ScheduledTaskTrigger -Daily -At 08:30) -Action (New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$dir\run_refresh.bat`"")
+Register-ScheduledTask -TaskName "Skidki 2 Send" -Force -Trigger (New-ScheduledTaskTrigger -Daily -At 08:45) -Action (New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$dir\run_send.bat`"")
+```
+To change a time later, open Task Scheduler and edit the task's trigger, or run the same line again with a new `-At`.
+
 ### Useful options
 ```
-python skidki_report.py --date 2026-10-15   # rebuild & send a specific day
-python skidki_report.py --send-only         # resend without refreshing
-python skidki_report.py --force             # send again even if already sent today
+python refresh_report.py --date 2026-10-15   # refresh for a specific day
+python refresh_report.py --visible           # watch Excel while it works
+python send_telegram.py --date 2026-10-15    # send a specific day
+python send_telegram.py --force              # resend, or send without a refresh
+python skidki_report.py                      # both steps in one go
 ```
-The script records which dates it has sent in `sent_state.json`. If the task runs twice, it does not post twice.
 
 ## Important notes
 

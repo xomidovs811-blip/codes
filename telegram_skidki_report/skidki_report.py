@@ -12,12 +12,12 @@ month's file and its Power Query date filter is moved to the new month.
 
 Runs on Windows with Microsoft Excel installed (uses COM via pywin32).
 
-Usage:
-    python skidki_report.py                     # normal daily run
-    python skidki_report.py --date 2026-10-15   # rebuild/resend a specific day
-    python skidki_report.py --no-send           # only refresh the workbook
-    python skidki_report.py --send-only         # only send (no Excel refresh)
-    python skidki_report.py --force             # send even if already sent
+Usage (two separate scheduled steps):
+    python refresh_report.py                    # step 1: refresh + save the workbook
+    python send_telegram.py                     # step 2: send it to Telegram
+    python refresh_report.py --date 2026-10-15  # any step for a specific day
+    python send_telegram.py --force             # resend / send without refresh
+    python skidki_report.py                     # both steps in one go
 """
 
 import argparse
@@ -380,66 +380,127 @@ def notify_admin(cfg, message):
 
 
 # --------------------------------------------------------------------------
-# Sent-state (avoid double sending when the task is re-run)
+# State: which dates were refreshed / sent (so the send step never sends a
+# stale file, and re-runs never post twice). Also keeps the last Telegram text
+# so the send step does not need Excel.
 # --------------------------------------------------------------------------
 
-def already_sent(state_file, report_date):
+def _load_state(state_file):
     try:
         with open(state_file, encoding="utf-8") as f:
-            return report_date.isoformat() in json.load(f).get("sent", [])
+            return json.load(f)
     except (FileNotFoundError, ValueError):
-        return False
+        return {}
 
 
-def mark_sent(state_file, report_date):
-    try:
-        with open(state_file, encoding="utf-8") as f:
-            state = json.load(f)
-    except (FileNotFoundError, ValueError):
-        state = {}
-    sent = set(state.get("sent", []))
-    sent.add(report_date.isoformat())
-    state["sent"] = sorted(sent)[-120:]
+def _save_state(state_file, state):
     with open(state_file, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=1)
 
 
+def _add_date(state_file, key, report_date, **extra):
+    state = _load_state(state_file)
+    dates = set(state.get(key, []))
+    dates.add(report_date.isoformat())
+    state[key] = sorted(dates)[-120:]
+    state.update(extra)
+    _save_state(state_file, state)
+
+
+def already_sent(state_file, report_date):
+    return report_date.isoformat() in _load_state(state_file).get("sent", [])
+
+
+def mark_sent(state_file, report_date):
+    _add_date(state_file, "sent", report_date)
+
+
+def was_refreshed(state_file, report_date):
+    return report_date.isoformat() in _load_state(state_file).get("refreshed", [])
+
+
+def mark_refreshed(state_file, report_date, text):
+    _add_date(state_file, "refreshed", report_date,
+              last_text={"date": report_date.isoformat(), "text": text})
+
+
+def saved_text(state_file, report_date):
+    last = _load_state(state_file).get("last_text") or {}
+    return last.get("text") if last.get("date") == report_date.isoformat() else None
+
+
+# --------------------------------------------------------------------------
+# Entry points
 # --------------------------------------------------------------------------
 
-def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+def _parse_args(argv, description, sending):
+    ap = argparse.ArgumentParser(description=description)
     ap.add_argument("--config", default=DEFAULT_CONFIG)
     ap.add_argument("--date", help="report date YYYY-MM-DD (default: yesterday)")
-    ap.add_argument("--no-send", action="store_true", help="refresh only, do not send")
-    ap.add_argument("--send-only", action="store_true", help="send only, skip Excel refresh")
-    ap.add_argument("--force", action="store_true", help="send even if this date was already sent")
-    ap.add_argument("--visible", action="store_true", help="show Excel while it works (for troubleshooting)")
-    args = ap.parse_args(argv)
+    if sending:
+        ap.add_argument("--force", action="store_true",
+                        help="send even if already sent or not refreshed for this date")
+    else:
+        ap.add_argument("--visible", action="store_true", help="show Excel while it works (for troubleshooting)")
+    return ap.parse_args(argv)
 
+
+def _start(args):
     cfg = load_config(args.config)
     setup_logging(cfg["log_file"])
-
     report_date = dt.date.fromisoformat(args.date) if args.date else report_date_for(dt.date.today())
-    log.info("=== Report date %s (file month %s) ===", report_date, month_key(report_date))
+    return cfg, report_date
 
-    if not args.no_send and not args.force and already_sent(cfg["state_file"], report_date):
-        log.info("Report for %s was already sent - nothing to do (use --force to resend)", report_date)
-        return 0
 
+def run_refresh(argv=None):
+    """Step 1: open -> enable editing -> Refresh All -> wait -> save -> exit."""
+    args = _parse_args(argv, "Refresh the monthly Скидки отчёт workbook (no sending).", sending=False)
+    cfg, report_date = _start(args)
+    log.info("=== REFRESH for %s (file month %s) ===", report_date, month_key(report_date))
     try:
-        path, created = ensure_monthly_file(cfg, report_date)
-        if args.send_only:
-            text = read_telegram_text(cfg, path)
-        else:
-            text = refresh_workbook(cfg, path, report_date, visible=args.visible)
-        if not args.no_send:
-            send_report(cfg, path, report_date, text)
-            mark_sent(cfg["state_file"], report_date)
+        path, _ = ensure_monthly_file(cfg, report_date)
+        text = refresh_workbook(cfg, path, report_date, visible=args.visible)
+        mark_refreshed(cfg["state_file"], report_date, text)
         return 0
     except Exception as e:
-        log.exception("FAILED")
+        log.exception("REFRESH FAILED")
+        notify_admin(cfg, f"⚠ Скидки отчёт за {report_date:%d.%m.%Y}: обновление не удалось: {e}")
+        return 1
+
+
+def run_send(argv=None):
+    """Step 2: send the refreshed workbook + text to Telegram."""
+    args = _parse_args(argv, "Send the refreshed Скидки отчёт workbook to Telegram.", sending=True)
+    cfg, report_date = _start(args)
+    log.info("=== SEND for %s ===", report_date)
+    if not args.force and already_sent(cfg["state_file"], report_date):
+        log.info("Report for %s was already sent - nothing to do (use --force to resend)", report_date)
+        return 0
+    try:
+        if not args.force and not was_refreshed(cfg["state_file"], report_date):
+            raise RuntimeError(
+                f"the file was not refreshed for {report_date:%d.%m.%Y} - run refresh_report.py first "
+                "(or use --force to send the file as it is)"
+            )
+        path = monthly_file_path(cfg["report_folder"], cfg["file_base_name"], report_date)
+        if not os.path.exists(path):
+            raise FileNotFoundError(path)
+        text = saved_text(cfg["state_file"], report_date)
+        if text is None and cfg["send_text"]:
+            text = read_telegram_text(cfg, path)
+        send_report(cfg, path, report_date, text or "")
+        mark_sent(cfg["state_file"], report_date)
+        return 0
+    except Exception as e:
+        log.exception("SEND FAILED")
         notify_admin(cfg, f"⚠ Скидки отчёт за {report_date:%d.%m.%Y} не отправлен: {e}")
         return 1
+
+
+def main(argv=None):
+    """Both steps in one go (refresh, then send)."""
+    rc = run_refresh(argv)
+    return rc or run_send(argv)
 
 
 if __name__ == "__main__":
