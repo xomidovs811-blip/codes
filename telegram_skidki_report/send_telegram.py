@@ -5,6 +5,8 @@ STEP 2 - send the refreshed report to the Telegram group.
 * Sends ONLY if refresh_report.py finished successfully for that day
   (state/refreshed_YYYY-MM-DD.txt exists) - an old file is never sent.
 * Never sends the same day twice (state/sent_YYYY-MM-DD.txt).
+* Remembers the ids of the sent messages (state/messages_YYYY-MM-DD.json)
+  so delete_last_report.py can remove them if the report was wrong.
 
 Run:  python send_telegram.py                    (yesterday)
       python send_telegram.py 2026-10-15         (a specific day)
@@ -16,6 +18,7 @@ Bot token: Windows environment variable TELEGRAM_BOT_TOKEN (already set),
 """
 
 import datetime as dt
+import json
 import logging
 import os
 import sys
@@ -68,6 +71,20 @@ def telegram(method, data, files=None):
     raise RuntimeError(f"Telegram {method}: failed after retries")
 
 
+def remember_message(report_date, message):
+    """Append a sent message id to state/messages_YYYY-MM-DD.json."""
+    os.makedirs(STATE_DIR, exist_ok=True)
+    path = os.path.join(STATE_DIR, f"messages_{report_date}.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            ids = json.load(f)
+    except (FileNotFoundError, ValueError):
+        ids = []
+    ids.append(message["message_id"])
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(ids, f)
+
+
 def split_text(text, limit=4096):
     """Split into Telegram-sized messages on line boundaries."""
     parts, cur = [], ""
@@ -110,15 +127,16 @@ def main():
             raise FileNotFoundError(path)
 
         with open(path, "rb") as f:
-            telegram("sendDocument",
-                     {"chat_id": CHAT_ID, "caption": f"📊 {FILE_BASE_NAME} за {report_date:%d.%m.%Y}"},
-                     files={"document": (os.path.basename(path), f)})
+            msg = telegram("sendDocument",
+                           {"chat_id": CHAT_ID, "caption": f"📊 {FILE_BASE_NAME} за {report_date:%d.%m.%Y}"},
+                           files={"document": (os.path.basename(path), f)})
+        remember_message(report_date, msg)
         log.info("File sent: %s", os.path.basename(path))
 
         if SEND_TEXT and os.path.exists(refreshed):
             with open(refreshed, encoding="utf-8") as f:
                 for part in split_text(f.read()):
-                    telegram("sendMessage", {"chat_id": CHAT_ID, "text": part})
+                    remember_message(report_date, telegram("sendMessage", {"chat_id": CHAT_ID, "text": part}))
             log.info("Text sent")
 
         os.makedirs(STATE_DIR, exist_ok=True)

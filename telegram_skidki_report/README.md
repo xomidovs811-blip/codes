@@ -5,6 +5,7 @@ Two independent Python scripts. Schedule each one yourself in Windows Task Sched
 | Script | What it does |
 |---|---|
 | `refresh_report.py` | Opens `Скидки отчёт YYYY-MM.xlsx` and enables editing. Sets yesterday's date in `Отчёт!C4`, then runs **Refresh All** and waits until it finishes. Saves the file and closes Excel. |
+| `delete_last_report.py` | Run by hand only. Deletes the last report the bot sent (the file and the text), so a wrong report can be removed and sent again. |
 | `send_telegram.py` | Sends the file and the text from the **Telegram** sheet to the group. It sends only if the refresh for that day succeeded, and never sends the same day twice. |
 
 - The report is always for **yesterday**.

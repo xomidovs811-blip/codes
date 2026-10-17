@@ -8,6 +8,7 @@ from unittest import mock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import refresh_report as rr  # noqa: E402
 import send_telegram as st  # noqa: E402
+import delete_last_report as dl  # noqa: E402
 
 FORMULA = (
     'let\n'
@@ -54,10 +55,14 @@ class Send(unittest.TestCase):
             mock.patch.object(st, "STATE_DIR", self.state),
             mock.patch.object(st, "LOG_FILE", os.path.join(d, "logs", "send.log")),
             mock.patch.object(st, "BOT_TOKEN", "1:x"),
-            mock.patch.object(st, "telegram", lambda m, data, files=None: self.calls.append(m)),
+            mock.patch.object(st, "telegram", self.fake_telegram),
         ]
         for p in self.patches:
             p.start()
+
+    def fake_telegram(self, method, data, files=None):
+        self.calls.append(method)
+        return {"message_id": 100 + len(self.calls)}
 
     def tearDown(self):
         for p in self.patches:
@@ -83,6 +88,25 @@ class Send(unittest.TestCase):
         self.assertEqual(self.run_send(), 0)
         self.assertEqual(len(self.calls), 2)
         self.assertEqual(self.run_send("--force"), 0)
+        self.assertEqual(len(self.calls), 4)
+
+    def test_delete_last_report(self):
+        with open(os.path.join(self.state, "refreshed_2026-10-16.txt"), "w", encoding="utf-8") as f:
+            f.write("📊 ОТЧЁТ")
+        self.assertEqual(self.run_send(), 0)
+        deleted = []
+        with mock.patch.object(dl, "STATE_DIR", self.state), \
+                mock.patch.object(dl, "LOG_FILE", os.path.join(self.tmp.name, "logs", "delete.log")), \
+                mock.patch.object(dl, "BOT_TOKEN", "1:x"), \
+                mock.patch.object(dl, "delete_message", deleted.append), \
+                mock.patch.object(sys, "argv", ["delete_last_report.py"]):
+            self.assertEqual(dl.main(), 0)
+        for h in list(dl.log.handlers):
+            h.close()
+            dl.log.removeHandler(h)
+        self.assertEqual(deleted, [101, 102])
+        self.assertFalse(os.path.exists(os.path.join(self.state, "sent_2026-10-16.txt")))
+        self.assertEqual(self.run_send(), 0)  # can be sent again
         self.assertEqual(len(self.calls), 4)
 
     def test_split_text(self):
