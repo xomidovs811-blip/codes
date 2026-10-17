@@ -1,0 +1,4 @@
+config.ini
+sent_state.json
+logs/
+__pycache__/
