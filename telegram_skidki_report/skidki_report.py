@@ -203,7 +203,21 @@ def ensure_monthly_file(cfg, report_date):
     return target, True
 
 
-def refresh_workbook(cfg, path, report_date):
+def lock_owner(path):
+    """Who has the workbook open, from Excel's "~$name" lock file (best effort)."""
+    lock = os.path.join(os.path.dirname(path), "~$" + os.path.basename(path))
+    try:
+        with open(lock, "rb") as f:
+            data = f.read()
+    except OSError:
+        return None
+    name = data[55:].decode("utf-16-le", "ignore").split("\x00")[0].strip() if len(data) > 55 else ""
+    if not name and data:
+        name = data[1:1 + data[0]].decode("cp1251", "ignore").strip()
+    return name or "unknown user"
+
+
+def refresh_workbook(cfg, path, report_date, visible=False):
     """Open, enable editing, set date, Refresh All, wait, save, close.
 
     Returns the Telegram text read from the refreshed workbook.
@@ -213,7 +227,7 @@ def refresh_workbook(cfg, path, report_date):
 
     pythoncom.CoInitialize()
     excel = win32com.client.DispatchEx("Excel.Application")  # own Excel instance
-    excel.Visible = False
+    excel.Visible = visible
     excel.DisplayAlerts = False
     excel.AskToUpdateLinks = False
     wb = None
@@ -222,9 +236,16 @@ def refresh_workbook(cfg, path, report_date):
         wb = excel.Workbooks.Open(path, UpdateLinks=0, ReadOnly=False)
         # "Enable Editing": if the file came up in Protected View, switch to edit mode.
         if excel.ProtectedViewWindows.Count > 0:
+            log.info("Protected View -> Enable Editing")
             wb = excel.ProtectedViewWindows(1).Edit()
         if wb.ReadOnly:
-            raise RuntimeError(f"{path} is opened read-only (probably open by another user) - cannot save")
+            owner = lock_owner(path)
+            raise RuntimeError(
+                f"{path} is opened read-only - the file is already open"
+                + (f" by: {owner}" if owner else "")
+                + ". Close it (or end EXCEL.EXE in Task Manager) and run again."
+            )
+        log.info("Opened for editing")
 
         # Make sure the Power Query covers exactly this month.
         query = wb.Queries(cfg["query_name"])
@@ -234,6 +255,7 @@ def refresh_workbook(cfg, path, report_date):
             query.Formula = new_formula
 
         # Report date = yesterday.
+        log.info("Setting report date %s", report_date)
         wb.Worksheets(cfg["report_sheet"]).Range(cfg["report_date_cell"]).Value2 = to_excel_serial(report_date)
 
         # Synchronous refresh: turn off background refresh so RefreshAll blocks.
@@ -391,6 +413,7 @@ def main(argv=None):
     ap.add_argument("--no-send", action="store_true", help="refresh only, do not send")
     ap.add_argument("--send-only", action="store_true", help="send only, skip Excel refresh")
     ap.add_argument("--force", action="store_true", help="send even if this date was already sent")
+    ap.add_argument("--visible", action="store_true", help="show Excel while it works (for troubleshooting)")
     args = ap.parse_args(argv)
 
     cfg = load_config(args.config)
@@ -408,7 +431,7 @@ def main(argv=None):
         if args.send_only:
             text = read_telegram_text(cfg, path)
         else:
-            text = refresh_workbook(cfg, path, report_date)
+            text = refresh_workbook(cfg, path, report_date, visible=args.visible)
         if not args.no_send:
             send_report(cfg, path, report_date, text)
             mark_sent(cfg["state_file"], report_date)
