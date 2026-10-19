@@ -112,6 +112,19 @@ def get_month_file(d):
     return path
 
 
+def lock_owner(path):
+    """Who has the workbook open, from Excel's "~$name" lock file (best effort)."""
+    try:
+        with open(os.path.join(os.path.dirname(path), "~$" + os.path.basename(path)), "rb") as f:
+            data = f.read()
+    except OSError:
+        return "unknown (maybe a hidden Excel on this PC - end EXCEL.EXE in Task Manager)"
+    name = data[55:].decode("utf-16-le", "ignore").split("\x00")[0].strip() if len(data) > 55 else ""
+    if not name and data:
+        name = data[1:1 + data[0]].decode("cp1251", "ignore").strip()
+    return name or "unknown"
+
+
 def refresh(path, days):
     """Refresh the month file once, then prepare every day in `days` (same month)."""
     import pythoncom
@@ -131,7 +144,7 @@ def refresh(path, days):
         if excel.ProtectedViewWindows.Count > 0:
             wb = excel.ProtectedViewWindows(1).Edit()
         if wb.ReadOnly:
-            raise RuntimeError("File is already open by someone (read-only) - close it and run again")
+            raise RuntimeError(f"File is already open by: {lock_owner(path)} - close it and run again")
 
         query = wb.Queries(QUERY_NAME)
         new_formula = month_filter(query.Formula, days[0])
