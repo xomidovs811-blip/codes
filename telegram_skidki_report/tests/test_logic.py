@@ -42,6 +42,17 @@ class Refresh(unittest.TestCase):
         self.assertEqual(rr.range_to_text(vals), "📊 ОТЧЁТ\n\nИтого")
 
 
+class RunLock(unittest.TestCase):
+    def test_single_run_lock(self):
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(rr, "STATE_DIR", d):
+            self.assertTrue(rr.single_run_lock())
+            self.assertFalse(rr.single_run_lock())  # second run at the same time is skipped
+            lock = os.path.join(d, "refresh.lock")
+            old = os.path.getmtime(lock) - 3600
+            os.utime(lock, (old, old))
+            self.assertTrue(rr.single_run_lock())  # stale lock from a crashed run is taken over
+
+
 class CatchUp(unittest.TestCase):
     def test_pending_days(self):
         with tempfile.TemporaryDirectory() as d:

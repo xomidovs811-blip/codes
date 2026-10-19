@@ -25,7 +25,9 @@ import logging
 import os
 import re
 import shutil
+import subprocess
 import sys
+import threading
 import time
 
 # ============================ SETTINGS ============================
@@ -36,7 +38,7 @@ REPORT_SHEET = "Отчёт"
 REPORT_DATE_CELL = "C4"
 TELEGRAM_TEXT_RANGE = "Telegram_текст"
 QUERY_NAME = "База_продаж"
-REFRESH_TIMEOUT_MIN = 30
+REFRESH_TIMEOUT_MIN = 15  # Excel is killed if one run takes longer than this
 MAX_CATCHUP_DAYS = 31  # never go further back than this
 # ==================================================================
 
@@ -125,16 +127,64 @@ def lock_owner(path):
     return name or "unknown"
 
 
+def excel_running(pid):
+    out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FI", "IMAGENAME eq EXCEL.EXE"],
+                         capture_output=True, text=True).stdout
+    return "EXCEL.EXE" in out.upper()
+
+
+def kill_excel(pid):
+    subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
+
+
+def kill_leftover_excel():
+    """Kill the hidden Excel of an earlier run that got stuck (only that one)."""
+    pid_file = os.path.join(STATE_DIR, "excel.pid")
+    try:
+        with open(pid_file) as f:
+            pid = int(f.read().strip())
+    except (OSError, ValueError):
+        return
+    if excel_running(pid):
+        log.warning("Killing stuck Excel from an earlier run (PID %s)", pid)
+        kill_excel(pid)
+        time.sleep(3)
+    os.remove(pid_file)
+
+
+def single_run_lock():
+    """Return True if no other refresh is running (stale locks are taken over)."""
+    lock = os.path.join(STATE_DIR, "refresh.lock")
+    if os.path.exists(lock) and time.time() - os.path.getmtime(lock) > (REFRESH_TIMEOUT_MIN + 10) * 60:
+        os.remove(lock)
+    try:
+        os.close(os.open(lock, os.O_CREAT | os.O_EXCL))
+        return True
+    except FileExistsError:
+        return False
+
+
 def refresh(path, days):
     """Refresh the month file once, then prepare every day in `days` (same month)."""
     import pythoncom
     import win32com.client
 
+    import win32process
+
     pythoncom.CoInitialize()
     excel = win32com.client.DispatchEx("Excel.Application")  # separate, invisible Excel
+    pid = win32process.GetWindowThreadProcessId(excel.Hwnd)[1]
+    with open(os.path.join(STATE_DIR, "excel.pid"), "w") as f:
+        f.write(str(pid))
     excel.Visible = False
     excel.DisplayAlerts = False
     excel.AskToUpdateLinks = False
+
+    # Watchdog: if Excel hangs (e.g. a source file is busy), kill it after the timeout.
+    timed_out = threading.Event()
+    watchdog = threading.Timer(REFRESH_TIMEOUT_MIN * 60, lambda: (timed_out.set(), kill_excel(pid)))
+    watchdog.daemon = True
+    watchdog.start()
     wb = None
     try:
         # 1. open
@@ -189,15 +239,24 @@ def refresh(path, days):
         # 4. save (the file stays on the latest day)
         wb.Save()
         log.info("Saved")
+    except Exception:
+        if timed_out.is_set():
+            raise TimeoutError(f"Excel did not finish in {REFRESH_TIMEOUT_MIN} min and was killed "
+                               "(a source file may have been busy) - run again later")
+        raise
     finally:
         # 5. exit
-        if wb is not None:
+        watchdog.cancel()
+        for close in (lambda: wb.Close(SaveChanges=False) if wb is not None else None, excel.Quit):
             try:
-                wb.Close(SaveChanges=False)
+                close()
             except Exception:
                 pass
-        excel.Quit()
         pythoncom.CoUninitialize()
+        time.sleep(2)
+        if excel_running(pid):  # Excel did not quit by itself
+            kill_excel(pid)
+        os.remove(os.path.join(STATE_DIR, "excel.pid"))
         log.info("Excel closed")
 
 
@@ -226,8 +285,14 @@ def main():
     setup_logging()
     days = [dt.date.fromisoformat(sys.argv[1])] if len(sys.argv) > 1 else pending_days(dt.date.today())
     log.info("=== REFRESH: %s ===", ", ".join(map(str, days)) or "nothing to do")
+    os.makedirs(STATE_DIR, exist_ok=True)
+    if not days:
+        return 0
+    if not single_run_lock():
+        log.error("Another refresh is still running - this run is skipped")
+        return 1
     try:
-        os.makedirs(STATE_DIR, exist_ok=True)
+        kill_leftover_excel()
         for month in sorted({month_key(d) for d in days}):  # one Excel run per month file
             month_days = [d for d in days if month_key(d) == month]
             refresh(get_month_file(month_days[0]), month_days)
@@ -236,6 +301,8 @@ def main():
     except Exception:
         log.exception("REFRESH FAILED")
         return 1
+    finally:
+        os.remove(os.path.join(STATE_DIR, "refresh.lock"))
 
 
 if __name__ == "__main__":
