@@ -37,6 +37,8 @@ log = logging.getLogger("delete")
 
 
 def setup_logging():
+    if log.handlers:
+        return
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     log.setLevel(logging.INFO)

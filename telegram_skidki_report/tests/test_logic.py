@@ -42,6 +42,24 @@ class Refresh(unittest.TestCase):
         self.assertEqual(rr.range_to_text(vals), "📊 ОТЧЁТ\n\nИтого")
 
 
+class CatchUp(unittest.TestCase):
+    def test_pending_days(self):
+        with tempfile.TemporaryDirectory() as d:
+            for mod in (rr, st):
+                with mock.patch.object(mod, "STATE_DIR", d):
+                    today = dt.date(2026, 10, 19)
+                    self.assertEqual(mod.pending_days(today), [dt.date(2026, 10, 18)])  # nothing sent yet
+                    open(os.path.join(d, "sent_2026-10-14.txt"), "w").close()
+                    self.assertEqual(mod.pending_days(today), [dt.date(2026, 10, d_) for d_ in (15, 16, 17, 18)])
+                    open(os.path.join(d, "sent_2026-10-18.txt"), "w").close()
+                    self.assertEqual(mod.pending_days(today), [])
+                    with mock.patch.object(mod, "MAX_CATCHUP_DAYS", 2):
+                        self.assertEqual(mod.pending_days(dt.date(2026, 10, 25)),
+                                         [dt.date(2026, 10, 23), dt.date(2026, 10, 24)])
+                    for f in os.listdir(d):
+                        os.remove(os.path.join(d, f))
+
+
 class Send(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -108,6 +126,34 @@ class Send(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(self.state, "sent_2026-10-16.txt")))
         self.assertEqual(self.run_send(), 0)  # can be sent again
         self.assertEqual(len(self.calls), 4)
+
+    def test_catch_up_sends_each_day_in_order(self):
+        open(os.path.join(self.state, "sent_2026-10-15.txt"), "w").close()
+        os.makedirs(os.path.join(self.state, "files"))
+        for day in ("16", "17", "18"):
+            with open(os.path.join(self.state, f"refreshed_2026-10-{day}.txt"), "w", encoding="utf-8") as f:
+                f.write(day)
+            open(os.path.join(self.state, "files", f"Скидки отчёт 2026-10-{day}.xlsx"), "wb").close()
+        with mock.patch.object(sys, "argv", ["send_telegram.py"]), mock.patch.object(st.time, "sleep"), \
+                mock.patch.object(st.dt, "date", wraps=dt.date) as fake_date:
+            fake_date.today.return_value = dt.date(2026, 10, 19)
+            fake_date.fromisoformat = dt.date.fromisoformat
+            self.assertEqual(st.main(), 0)
+        self.assertEqual(len(self.calls), 6)  # 3 days x (file + text)
+        for day in ("16", "17", "18"):
+            self.assertTrue(os.path.exists(os.path.join(self.state, f"sent_2026-10-{day}.txt")))
+        self.assertEqual(os.listdir(os.path.join(self.state, "files")), [])  # day copies cleaned up
+
+    def test_catch_up_stops_at_missing_refresh(self):
+        open(os.path.join(self.state, "sent_2026-10-16.txt"), "w").close()
+        with open(os.path.join(self.state, "refreshed_2026-10-18.txt"), "w", encoding="utf-8") as f:
+            f.write("x")
+        with mock.patch.object(sys, "argv", ["send_telegram.py"]), \
+                mock.patch.object(st.dt, "date", wraps=dt.date) as fake_date:
+            fake_date.today.return_value = dt.date(2026, 10, 19)
+            fake_date.fromisoformat = dt.date.fromisoformat
+            self.assertEqual(st.main(), 1)  # 17th not refreshed -> nothing sent, order kept
+        self.assertEqual(self.calls, [])
 
     def test_split_text(self):
         text = "\n".join(f"line {i:04d}" for i in range(1000))

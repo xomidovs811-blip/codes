@@ -4,14 +4,16 @@ STEP 1 - refresh the discount report in Excel.
     open file -> enable editing -> Refresh All (Power Query) -> wait until
     finished -> save -> exit Excel
 
-* Report is always for YESTERDAY (today's run updates yesterday's data).
+* Report is for YESTERDAY. Catch-up: if some days were missed, every day after
+  the last sent one up to yesterday is prepared separately (own date, own text,
+  own copy of the file in state/files/) so send_telegram.py can send each day.
 * One file per month: "Скидки отчёт 2026-10.xlsx". When yesterday is in a new
   month, the file is created from the previous month's file and the Power
   Query date filter is moved to the new month.
 * After a successful refresh it writes  state/refreshed_YYYY-MM-DD.txt
   (the Telegram text). send_telegram.py sends only if this file exists.
 
-Run:  python refresh_report.py            (yesterday)
+Run:  python refresh_report.py            (all missed days up to yesterday)
       python refresh_report.py 2026-10-15 (a specific day)
 
 Needs: Windows + Microsoft Excel, pip install pywin32
@@ -35,6 +37,7 @@ REPORT_DATE_CELL = "C4"
 TELEGRAM_TEXT_RANGE = "Telegram_текст"
 QUERY_NAME = "База_продаж"
 REFRESH_TIMEOUT_MIN = 30
+MAX_CATCHUP_DAYS = 31  # never go further back than this
 # ==================================================================
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -46,6 +49,8 @@ log = logging.getLogger("refresh")
 
 
 def setup_logging():
+    if log.handlers:
+        return
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     log.setLevel(logging.INFO)
@@ -107,7 +112,8 @@ def get_month_file(d):
     return path
 
 
-def refresh(path, report_date):
+def refresh(path, days):
+    """Refresh the month file once, then prepare every day in `days` (same month)."""
     import pythoncom
     import win32com.client
 
@@ -128,12 +134,12 @@ def refresh(path, report_date):
             raise RuntimeError("File is already open by someone (read-only) - close it and run again")
 
         query = wb.Queries(QUERY_NAME)
-        new_formula = month_filter(query.Formula, report_date)
+        new_formula = month_filter(query.Formula, days[0])
         if new_formula != query.Formula:
             query.Formula = new_formula
-            log.info("Power Query filter set to %s", month_key(report_date))
-        wb.Worksheets(REPORT_SHEET).Range(REPORT_DATE_CELL).Value2 = (report_date - EXCEL_EPOCH).days
-        log.info("Report date set to %s", report_date)
+            log.info("Power Query filter set to %s", month_key(days[0]))
+        date_cell = wb.Worksheets(REPORT_SHEET).Range(REPORT_DATE_CELL)
+        date_cell.Value2 = (days[-1] - EXCEL_EPOCH).days
 
         # 3. refresh all and wait until finished
         for conn in wb.Connections:
@@ -152,12 +158,24 @@ def refresh(path, report_date):
         excel.CalculateFull()
         log.info("Refresh finished in %.0f s", time.time() - started)
 
-        text = range_to_text(wb.Names(TELEGRAM_TEXT_RANGE).RefersToRange.Value)
+        # one report per day: set the date, recalculate, keep its text and a copy of the file
+        os.makedirs(os.path.join(STATE_DIR, "files"), exist_ok=True)
+        for day in days:
+            date_cell.Value2 = (day - EXCEL_EPOCH).days
+            excel.CalculateFull()
+            text = range_to_text(wb.Names(TELEGRAM_TEXT_RANGE).RefersToRange.Value)
+            snapshot = os.path.join(STATE_DIR, "files", f"{FILE_BASE_NAME} {day}.xlsx")
+            if len(days) > 1:
+                wb.SaveCopyAs(snapshot)
+            elif os.path.exists(snapshot):
+                os.remove(snapshot)  # the monthly file itself is now the right one
+            with open(os.path.join(STATE_DIR, f"refreshed_{day}.txt"), "w", encoding="utf-8") as f:
+                f.write(text)
+            log.info("Prepared report for %s", day)
 
-        # 4. save
+        # 4. save (the file stays on the latest day)
         wb.Save()
         log.info("Saved")
-        return text
     finally:
         # 5. exit
         if wb is not None:
@@ -177,16 +195,29 @@ def _refreshing(conn):
         return False
 
 
+def pending_days(today):
+    """Days after the last sent report up to yesterday that are not sent yet."""
+    yesterday = today - dt.timedelta(days=1)
+    sent = [dt.date.fromisoformat(os.path.basename(p)[5:15])
+            for p in glob.glob(os.path.join(STATE_DIR, "sent_????-??-??.txt"))]
+    start = max(sent) + dt.timedelta(days=1) if sent else yesterday
+    start = max(start, yesterday - dt.timedelta(days=MAX_CATCHUP_DAYS - 1))
+    days = []
+    while start <= yesterday:
+        days.append(start)
+        start += dt.timedelta(days=1)
+    return days
+
+
 def main():
     setup_logging()
-    report_date = dt.date.fromisoformat(sys.argv[1]) if len(sys.argv) > 1 else dt.date.today() - dt.timedelta(days=1)
-    log.info("=== REFRESH for %s ===", report_date)
+    days = [dt.date.fromisoformat(sys.argv[1])] if len(sys.argv) > 1 else pending_days(dt.date.today())
+    log.info("=== REFRESH: %s ===", ", ".join(map(str, days)) or "nothing to do")
     try:
-        path = get_month_file(report_date)
-        text = refresh(path, report_date)
         os.makedirs(STATE_DIR, exist_ok=True)
-        with open(os.path.join(STATE_DIR, f"refreshed_{report_date}.txt"), "w", encoding="utf-8") as f:
-            f.write(text)
+        for month in sorted({month_key(d) for d in days}):  # one Excel run per month file
+            month_days = [d for d in days if month_key(d) == month]
+            refresh(get_month_file(month_days[0]), month_days)
         log.info("DONE")
         return 0
     except Exception:
