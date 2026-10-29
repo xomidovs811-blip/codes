@@ -56,6 +56,12 @@ if _person_routes:
 # POST_UNROUTED_TO_DEFAULT=1 to restore the old fallback.
 POST_UNROUTED_TO_DEFAULT = os.getenv("POST_UNROUTED_TO_DEFAULT", "0").strip() == "1"
 
+# The generated zayavka .xlsx is sent read-only: its sheet (and workbook
+# structure) are protected with this password, so corrections go through the
+# app ("Zayavkalar jadvali" -> edit) and the database stays the source of
+# truth. Unprotect in Excel with Review -> Unprotect Sheet -> this password.
+EXCEL_SHEET_PASSWORD = os.getenv("EXCEL_SHEET_PASSWORD", "123")
+
 # --- Reference lists, taken from the "справочник" sheet of your real
 # working template (15.09.2026-2.xlsx) - this is the source of truth now. ---
 

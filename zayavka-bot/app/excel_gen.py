@@ -21,8 +21,9 @@ from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.formatting.rule import CellIsRule
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.workbook.protection import WorkbookProtection
 
-from app.config import PAYMENT_TYPES
+from app.config import PAYMENT_TYPES, EXCEL_SHEET_PASSWORD
 
 # --- palette, straight from the reference file ---
 NAVY = "1F4E78"
@@ -379,6 +380,18 @@ def build_workbook(zayavka: dict) -> Workbook:
     ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.print_area = f"A1:M{confirm_row + 1}"
+
+    # Read-only for users: people were correcting the Excel file itself, so
+    # the zayavka in the app (and the database) no longer matched it. Every
+    # cell stays locked (openpyxl's default); viewing, selecting/copying,
+    # printing and resizing columns/rows for reading still work. Changes are
+    # made in the app; the password is only for an admin who really must.
+    if EXCEL_SHEET_PASSWORD:
+        ws.protection.sheet = True
+        ws.protection.password = EXCEL_SHEET_PASSWORD
+        ws.protection.formatColumns = False
+        ws.protection.formatRows = False
+        wb.security = WorkbookProtection(workbookPassword=EXCEL_SHEET_PASSWORD, lockStructure=True)
 
     return wb
 
