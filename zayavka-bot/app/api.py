@@ -24,7 +24,7 @@ from app.models import (
     Zayavka, ZayavkaItem, ZayavkaVersion, NameOption, AppUser, PERMISSION_DEFAULTS, PERMISSION_KEYS,
 )
 from app.schemas import (
-    ZayavkaIn, NameOptionIn, ExportIn, AdminUserIn, AdminUserPatch, AccessRequestIn,
+    ZayavkaIn, NameOptionIn, NameOptionRename, ExportIn, AdminUserIn, AdminUserPatch, AccessRequestIn,
 )
 from app.services import (
     create_zayavka_record, update_zayavka_record, backfill_versions, seed_default_work_types,
@@ -246,6 +246,49 @@ def add_name_option(
     )
     if not exists:
         db.add(NameOption(category=category, name=name))
+        db.commit()
+
+    return {"names": _names_by_category(db, category)}
+
+
+@app.patch("/api/names")
+def rename_name_option(
+    payload: NameOptionRename, db: Session = Depends(get_db), access: Access = Depends(current_access)
+):
+    """
+    Fixes a misspelled/outdated entry in a growable list (the ✏️ in the
+    "manage" UI on items.html) - same permission as deleting one. Only the
+    list entry changes: zayavkas already saved keep the text they were saved
+    (and sent as Excel) with. If the new name is already in the list, the old
+    entry is simply dropped, so the two merge instead of duplicating.
+    """
+    _require_active(access)
+    _require(access, access.can_manage_lists, "ro'yxatni tahrirlash")
+    category = payload.category.strip()
+    old_name = payload.old_name.strip()
+    new_name = payload.new_name.strip()
+    if category not in NAME_OPTION_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Unknown category: {category}")
+    if not new_name:
+        raise HTTPException(status_code=400, detail="Yangi nom bo'sh bo'lmasligi kerak")
+
+    row = (
+        db.query(NameOption)
+        .filter(NameOption.category == category, NameOption.name == old_name)
+        .first()
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Bu nom ro'yxatda topilmadi")
+    if new_name != old_name:
+        clash = (
+            db.query(NameOption)
+            .filter(NameOption.category == category, NameOption.name == new_name)
+            .first()
+        )
+        if clash:
+            db.delete(row)
+        else:
+            row.name = new_name
         db.commit()
 
     return {"names": _names_by_category(db, category)}

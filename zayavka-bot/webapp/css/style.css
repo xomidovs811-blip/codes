@@ -358,6 +358,14 @@ td.remainder-cell input { background: #dcfce7; color: #15803d; }
   font-size: 18px;
 }
 
+/* ✏️ / ✓ / ✕ in the list "manage" modals - same small icon button as 🗑️ */
+.btn-edit {
+  background: transparent;
+  color: var(--accent);
+  padding: 4px 8px;
+  font-size: 18px;
+}
+
 /* Second-tap delete confirmation (e.g. Postavshiklar ro'yxatini boshqarish) */
 .btn-danger.confirming {
   background: var(--danger);

@@ -342,14 +342,38 @@ function createNameListController(category, datalistId) {
     else { list = list.filter((n) => n !== name); render(); }
   }
 
+  async function renameName(oldName, newName) {
+    const res = await apiPatch("/api/names", { category, old_name: oldName, new_name: newName });
+    if (res && Array.isArray(res.names)) setList(res.names);
+    else {
+      list = list.filter((n) => n !== oldName);
+      render();
+      addLocally(newName);
+    }
+    // Rows already filled in on this open form follow the rename too, so
+    // saving it doesn't put the old spelling straight back into the list.
+    const cls = RENAME_INPUT_CLASS[category];
+    let changed = false;
+    if (cls) {
+      document.querySelectorAll(`#itemsBody .${cls}`).forEach((input) => {
+        if (input.value.trim() === oldName) { input.value = newName; changed = true; }
+      });
+    }
+    if (changed) markDirty();
+  }
+
   return {
     setList,
     addLocally,
     wireInput,
     deleteName,
+    renameName,
     getList: () => list,
   };
 }
+
+// Which row input of the item table holds each list's value (renameName).
+const RENAME_INPUT_CLASS = { supplier: "supplier-input", unit: "unit-input", work_type: "work-input" };
 
 const supplierList = createNameListController("supplier", "supplierOptions");
 const unitList = createNameListController("unit", "unitOptions");
@@ -451,11 +475,55 @@ function renderManageList(controller, containerId) {
     return;
   }
   container.innerHTML = items.map((name, idx) => `
-    <div class="list-item" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:default;">
-      <span>${esc(name)}</span>
-      <button type="button" class="btn-danger" data-idx="${idx}" title="O'chirish">🗑️</button>
+    <div class="list-item" data-row="${idx}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:default;">
+      <span class="manage-name">${esc(name)}</span>
+      <span class="manage-actions" style="display:flex;gap:4px;flex-shrink:0;">
+        <button type="button" class="btn-edit" data-edit="${idx}" title="Tahrirlash">✏️</button>
+        <button type="button" class="btn-danger" data-idx="${idx}" title="O'chirish">🗑️</button>
+      </span>
     </div>
   `).join("");
+
+  // ✏️: the row turns into a text box with ✓ (save) / ✕ (cancel) in place -
+  // no prompt(), which Telegram's WebView doesn't support (same as confirm()).
+  container.querySelectorAll("button[data-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.edit);
+      const oldName = items[idx];
+      const row = container.querySelector(`[data-row="${idx}"]`);
+      row.innerHTML = `
+        <input type="text" class="manage-edit-input" style="flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--accent);border-radius:8px;font:inherit;" />
+        <span style="display:flex;gap:4px;flex-shrink:0;">
+          <button type="button" class="btn-edit manage-save" title="Saqlash">✓</button>
+          <button type="button" class="btn-edit manage-cancel" title="Bekor qilish">✕</button>
+        </span>`;
+      const input = row.querySelector(".manage-edit-input");
+      input.value = oldName;
+      input.focus();
+      input.select();
+      const cancel = () => renderManageList(controller, containerId);
+      const save = async () => {
+        const newName = input.value.trim();
+        if (!newName) { showToast("Nom bo'sh bo'lmasligi kerak", true); return; }
+        if (newName === oldName) { cancel(); return; }
+        row.querySelector(".manage-save").disabled = true;
+        try {
+          await controller.renameName(oldName, newName);
+          renderManageList(controller, containerId);
+          showToast("✅ O'zgartirildi");
+        } catch (e) {
+          row.querySelector(".manage-save").disabled = false;
+          showToast("Xatolik: " + e.message, true);
+        }
+      };
+      row.querySelector(".manage-save").addEventListener("click", save);
+      row.querySelector(".manage-cancel").addEventListener("click", cancel);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); save(); }
+        if (e.key === "Escape") { e.preventDefault(); cancel(); }
+      });
+    });
+  });
 
   container.querySelectorAll("button[data-idx]").forEach((btn) => {
     btn.addEventListener("click", async () => {

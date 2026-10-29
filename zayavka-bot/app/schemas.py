@@ -112,3 +112,9 @@ class AccessRequestIn(BaseModel):
 class NameOptionIn(BaseModel):
     category: str
     name: str
+
+
+class NameOptionRename(BaseModel):
+    category: str
+    old_name: str
+    new_name: str
