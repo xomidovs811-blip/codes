@@ -13,6 +13,12 @@ confirmation.
 
 Built programmatically (not by editing a fixed-size copy of the original)
 so it works correctly no matter how many item rows there are.
+
+Every total is written as a ready number, not an Excel formula: openpyxl
+can't store a formula's result, and Excel's Protected View (a file from
+Telegram opens there until "Enable Editing") and phone viewers don't
+recalculate, so formula cells showed up empty. The sheet is protected and
+edited only through the app, so live formulas aren't needed.
 """
 from pathlib import Path
 
@@ -101,11 +107,12 @@ ITEM_COLUMNS = [
 # from the first item row down to the end of the Тасдик block (handy for
 # filtering/lookups if this sheet ever gets combined with others). They're
 # plain/unstyled and sit outside the print area, but not actually hidden.
+# (header label, zayavka dict key, column, width)
 HELPER_COLUMNS = [
-    ("НОМЕР ЗАЯВКИ", "=$L$3", 14, 17.89),
-    ("От кого:", "=$C$3", 15, 17.0),
-    ("Название объекта:", "=$C$1", 16, 18.11),
-    ("Дата:", "=$C$2", 17, 13.0),
+    ("НОМЕР ЗАЯВКИ", "number", 14, 17.89),
+    ("От кого:", "from_whom", 15, 17.0),
+    ("Название объекта:", "object_name", 16, 18.11),
+    ("Дата:", "date", 17, 13.0),
 ]
 HELPER_DATE_COL = 17
 
@@ -134,6 +141,17 @@ def _group_by_supplier(items: list) -> list:
     return groups
 
 
+def _num(v) -> float:
+    """A blank/None cell counts as 0, like it does in an Excel formula."""
+    return float(v) if v not in (None, "") else 0.0
+
+
+def _money(v: float):
+    # 2.18 * 90 -> 196.2, not 196.20000000000002; whole sums stay ints
+    v = round(v, 2)
+    return int(v) if v == int(v) else v
+
+
 def build_workbook(zayavka: dict) -> Workbook:
     """
     zayavka: {
@@ -155,7 +173,7 @@ def build_workbook(zayavka: dict) -> Workbook:
     # column widths A..M, plus the helper columns N/O/P
     for idx, (_, _label, width) in enumerate(ITEM_COLUMNS, start=1):
         ws.column_dimensions[get_column_letter(idx)].width = width
-    for _label, _formula, col_offset, width in HELPER_COLUMNS:
+    for _label, _key, col_offset, width in HELPER_COLUMNS:
         ws.column_dimensions[get_column_letter(col_offset)].width = width
 
     # --- header block (rows 1-5): 2-column-wide label + 9-column value ---
@@ -221,7 +239,7 @@ def build_workbook(zayavka: dict) -> Workbook:
         cell.fill = HEADER_FILL
         cell.alignment = CENTER
         cell.border = BORDER
-    for label, _formula, col_offset, _w in HELPER_COLUMNS:
+    for label, _key, col_offset, _w in HELPER_COLUMNS:
         cell = ws.cell(row=HEADER_ROW, column=col_offset, value=label)
         cell.font = HELPER_HEADER_FONT
         cell.alignment = CENTER_NOWRAP
@@ -231,9 +249,9 @@ def build_workbook(zayavka: dict) -> Workbook:
     # same-supplier items; subtotal rows don't get a т/р number. ---
     r = FIRST_ITEM_ROW
     tr_no = 1
-    subtotal_rows = []
+    grand = [0.0, 0.0, 0.0]   # Общая сумма, Аванс, Остатка
     for supplier, group_items in groups:
-        group_start = r
+        sub = [0.0, 0.0, 0.0]
         for item in group_items:
             product_name = item.get("product_name") or ""
             ws.row_dimensions[r].height = 31.95 if "\n" in product_name else 25.05
@@ -247,13 +265,18 @@ def build_workbook(zayavka: dict) -> Workbook:
             price_cell = ws.cell(row=r, column=8, value=item.get("price"))                         # H Цена
             price_cell.alignment = RIGHT_NOWRAP
             price_cell.number_format = "#,##0"
-            total_cell = ws.cell(row=r, column=9, value=f"=G{r}*H{r}")                            # I Общая сумма
+            total = _num(item.get("qty")) * _num(item.get("price"))
+            advance = _num(item.get("advance"))
+            remainder = total - advance
+            for i, v in enumerate((total, advance, remainder)):
+                sub[i] += v
+            total_cell = ws.cell(row=r, column=9, value=_money(total))                             # I Общая сумма
             total_cell.alignment = RIGHT_NOWRAP
             total_cell.number_format = "#,##0"
             adv_cell = ws.cell(row=r, column=10, value=item.get("advance"))                        # J Аванс
             adv_cell.alignment = RIGHT_NOWRAP
             adv_cell.number_format = "#,##0"
-            rem_cell = ws.cell(row=r, column=11, value=f"=I{r}-J{r}")                              # K Остатка
+            rem_cell = ws.cell(row=r, column=11, value=_money(remainder))                          # K Остатка
             rem_cell.alignment = RIGHT_NOWRAP
             rem_cell.number_format = "#,##0"
             rem_cell.fill = REMAINDER_FILL
@@ -268,14 +291,15 @@ def build_workbook(zayavka: dict) -> Workbook:
             r += 1
             tr_no += 1
 
-        group_end = r - 1
         ws.row_dimensions[r].height = 24
         subtotal_label = ws.cell(row=r, column=1, value=f"ИТОГО: {supplier}" if supplier else "ИТОГО:")
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=8)
         subtotal_label.alignment = LEFT_MID
-        i_sub = ws.cell(row=r, column=9, value=f"=SUM(I{group_start}:I{group_end})")
-        j_sub = ws.cell(row=r, column=10, value=f"=SUM(J{group_start}:J{group_end})")
-        k_sub = ws.cell(row=r, column=11, value=f"=SUM(K{group_start}:K{group_end})")
+        i_sub = ws.cell(row=r, column=9, value=_money(sub[0]))
+        j_sub = ws.cell(row=r, column=10, value=_money(sub[1]))
+        k_sub = ws.cell(row=r, column=11, value=_money(sub[2]))
+        for i in range(3):
+            grand[i] += sub[i]
         for c in (i_sub, j_sub, k_sub):
             c.alignment = RIGHT_NOWRAP
             c.number_format = "#,##0"
@@ -284,15 +308,13 @@ def build_workbook(zayavka: dict) -> Workbook:
             cell.fill = SUBTOTAL_FILL
             cell.font = SUBTOTAL_FONT
             cell.border = BORDER
-        subtotal_rows.append(r)
         r += 1
         # tr_no does NOT advance here - subtotal rows show no т/р number,
         # so item numbering stays clean and consecutive (1, 2, 3, ...).
 
     last_row = r - 1
 
-    # --- СУММА ЗАЯВКИ: one consolidated row, summed from the subtotal rows
-    # only (summing the full item range too would double-count each item). ---
+    # --- СУММА ЗАЯВКИ: one consolidated row (the sum of the subtotals). ---
     sum_row = last_row + 2
     ws.row_dimensions[sum_row].height = 21.6
     ws.merge_cells(start_row=sum_row, start_column=1, end_row=sum_row, end_column=8)
@@ -300,12 +322,9 @@ def build_workbook(zayavka: dict) -> Workbook:
     sum_label.font = TOTAL_ROW_FONT
     sum_label.alignment = LEFT_MID
 
-    i_refs = "+".join(f"I{sr}" for sr in subtotal_rows) or "0"
-    j_refs = "+".join(f"J{sr}" for sr in subtotal_rows) or "0"
-    k_refs = "+".join(f"K{sr}" for sr in subtotal_rows) or "0"
-    i_total = ws.cell(row=sum_row, column=9, value=f"={i_refs}")
-    j_total = ws.cell(row=sum_row, column=10, value=f"={j_refs}")
-    k_total = ws.cell(row=sum_row, column=11, value=f"={k_refs}")
+    i_total = ws.cell(row=sum_row, column=9, value=_money(grand[0]))
+    j_total = ws.cell(row=sum_row, column=10, value=_money(grand[1]))
+    k_total = ws.cell(row=sum_row, column=11, value=_money(grand[2]))
     for c in (i_total, j_total):
         c.font = TOTAL_ROW_FONT
         c.alignment = RIGHT_NOWRAP
@@ -355,8 +374,8 @@ def build_workbook(zayavka: dict) -> Workbook:
 
     # helper columns N-Q on every row down to the end of the Тасдик block
     for row in range(FIRST_ITEM_ROW, confirm_row + 2):
-        for _label, formula, col_offset, _w in HELPER_COLUMNS:
-            cell = ws.cell(row=row, column=col_offset, value=formula)
+        for _label, key, col_offset, _w in HELPER_COLUMNS:
+            cell = ws.cell(row=row, column=col_offset, value=zayavka[key])
             cell.font = HELPER_FONT
             cell.alignment = CENTER_NOWRAP
             if col_offset == HELPER_DATE_COL:
@@ -376,10 +395,19 @@ def build_workbook(zayavka: dict) -> Workbook:
     # an earlier edit, not intentional, so the full sheet (through the
     # Тасдик block) is used here instead.
     ws.page_setup.orientation = "landscape"
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.print_area = f"A1:M{confirm_row + 1}"
+    # narrow margins, centered across the page, and the column header row
+    # repeated on every page when a long zayavka runs onto page 2+
+    ws.page_margins.left = ws.page_margins.right = 0.25
+    ws.page_margins.top = ws.page_margins.bottom = 0.4
+    ws.page_margins.header = ws.page_margins.footer = 0.2
+    ws.print_options.horizontalCentered = True
+    ws.print_title_rows = f"{HEADER_ROW}:{HEADER_ROW}"
+    ws.oddFooter.center.text = "&P / &N"
 
     # Read-only for users: people were correcting the Excel file itself, so
     # the zayavka in the app (and the database) no longer matched it. Every
