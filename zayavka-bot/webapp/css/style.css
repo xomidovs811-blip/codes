@@ -358,6 +358,23 @@ td.remainder-cell input { background: #dcfce7; color: #15803d; }
   font-size: 18px;
 }
 
+/* ⠿ drag handle in the list "manage" modals (drag a row to reorder) */
+.drag-handle {
+  cursor: grab;
+  touch-action: none;   /* a drag on the handle moves the row instead of scrolling */
+  user-select: none;
+  color: var(--tg-hint);
+  font-size: 20px;
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+.list-item.dragging {
+  opacity: 0.85;
+  box-shadow: 0 8px 22px rgba(79, 70, 229, 0.35);
+  background: var(--accent-soft);
+  cursor: grabbing;
+}
+
 /* ✏️ / ✓ / ✕ in the list "manage" modals - same small icon button as 🗑️ */
 .btn-edit {
   background: transparent;

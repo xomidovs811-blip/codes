@@ -114,6 +114,11 @@ class NameOptionIn(BaseModel):
     name: str
 
 
+class NameOptionOrder(BaseModel):
+    category: str
+    names: List[str]
+
+
 class NameOptionRename(BaseModel):
     category: str
     old_name: str

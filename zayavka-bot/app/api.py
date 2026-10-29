@@ -24,7 +24,7 @@ from app.models import (
     Zayavka, ZayavkaItem, ZayavkaVersion, NameOption, AppUser, PERMISSION_DEFAULTS, PERMISSION_KEYS,
 )
 from app.schemas import (
-    ZayavkaIn, NameOptionIn, NameOptionRename, ExportIn, AdminUserIn, AdminUserPatch, AccessRequestIn,
+    ZayavkaIn, NameOptionIn, NameOptionRename, NameOptionOrder, ExportIn, AdminUserIn, AdminUserPatch, AccessRequestIn,
 )
 from app.services import (
     create_zayavka_record, update_zayavka_record, backfill_versions, seed_default_work_types,
@@ -183,7 +183,9 @@ def _names_by_category(db: Session, category: str) -> list:
     rows = (
         db.query(NameOption)
         .filter(NameOption.category == category)
-        .order_by(NameOption.name)
+        # the hand-set order first (drag-and-drop in the "manage" modal),
+        # then anything never placed by hand, alphabetically
+        .order_by(NameOption.sort_order.is_(None), NameOption.sort_order, NameOption.name)
         .all()
     )
     return [r.name for r in rows]
@@ -247,6 +249,33 @@ def add_name_option(
     if not exists:
         db.add(NameOption(category=category, name=name))
         db.commit()
+
+    return {"names": _names_by_category(db, category)}
+
+
+@app.put("/api/names/order")
+def reorder_name_options(
+    payload: NameOptionOrder, db: Session = Depends(get_db), access: Access = Depends(current_access)
+):
+    """
+    Saves the order a list was dragged into in the "manage" modal, so the
+    most-used entries come first when choosing (e.g. Сметная группа). Names
+    not in `names` keep no position and follow the ordered ones, A-Z.
+    """
+    _require_active(access)
+    _require(access, access.can_manage_lists, "ro'yxat tartibini o'zgartirish")
+    category = payload.category.strip()
+    if category not in NAME_OPTION_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Unknown category: {category}")
+
+    position = {}
+    for name in payload.names:
+        name = name.strip()
+        if name and name not in position:
+            position[name] = len(position)
+    for row in db.query(NameOption).filter(NameOption.category == category).all():
+        row.sort_order = position.get(row.name)
+    db.commit()
 
     return {"names": _names_by_category(db, category)}
 

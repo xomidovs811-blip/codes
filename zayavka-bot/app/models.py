@@ -326,3 +326,6 @@ class NameOption(Base):
     id = Column(Integer, primary_key=True, index=True)
     category = Column(String(50), nullable=False)  # "inspector" | "cashier" | "tech_supervisor" | "supplier"
     name = Column(String(255), nullable=False)
+    # Position set by dragging in the "manage" modal (most important first).
+    # NULL = never placed by hand: those follow the ordered ones, A-Z.
+    sort_order = Column(Integer, nullable=True)

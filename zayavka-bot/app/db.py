@@ -111,9 +111,20 @@ def _migrate_app_users():
         conn.execute(text("DROP TABLE app_users_old"))
 
 
+def _add_name_option_sort_order():
+    """name_options.sort_order (manual drag-and-drop order) for an existing database."""
+    inspector = inspect(engine)
+    if "name_options" not in inspector.get_table_names():
+        return
+    if "sort_order" not in {col["name"] for col in inspector.get_columns("name_options")}:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE name_options ADD COLUMN sort_order INTEGER"))
+
+
 def init_db():
     from app import models  # noqa: F401  (ensure models are registered)
     _add_missing_columns()
+    _add_name_option_sort_order()
     _migrate_app_users()
     Base.metadata.create_all(bind=engine)
     _add_missing_indexes()

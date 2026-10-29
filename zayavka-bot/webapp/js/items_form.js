@@ -312,17 +312,30 @@ function createNameListController(category, datalistId) {
       list.map((s) => `<option value="${s}"></option>`).join("");
   }
 
+  // Kept in the server's order - the one set by dragging in the "manage"
+  // modal (most important first) - not re-sorted A-Z here.
   function setList(names) {
-    list = (names || []).slice().sort((a, b) => a.localeCompare(b));
+    list = (names || []).slice();
     render();
   }
 
   function addLocally(name) {
     name = (name || "").trim();
     if (name && !list.includes(name)) {
-      list.push(name);
-      list.sort((a, b) => a.localeCompare(b));
+      list.push(name);   // a new name goes to the end until it's dragged up
       render();
+    }
+  }
+
+  async function reorder(names) {
+    const before = list;
+    setList(names);   // show it right away; roll back if the save fails
+    try {
+      const res = await apiPut("/api/names/order", { category, names });
+      if (res && Array.isArray(res.names)) setList(res.names);
+    } catch (e) {
+      setList(before);
+      throw e;
     }
   }
 
@@ -368,6 +381,7 @@ function createNameListController(category, datalistId) {
     wireInput,
     deleteName,
     renameName,
+    reorder,
     getList: () => list,
   };
 }
@@ -476,13 +490,16 @@ function renderManageList(controller, containerId) {
   }
   container.innerHTML = items.map((name, idx) => `
     <div class="list-item" data-row="${idx}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:default;">
-      <span class="manage-name">${esc(name)}</span>
+      <span class="drag-handle" title="Tartibni o'zgartirish uchun torting">⠿</span>
+      <span class="manage-name" style="flex:1;min-width:0;">${esc(name)}</span>
       <span class="manage-actions" style="display:flex;gap:4px;flex-shrink:0;">
         <button type="button" class="btn-edit" data-edit="${idx}" title="Tahrirlash">✏️</button>
         <button type="button" class="btn-danger" data-idx="${idx}" title="O'chirish">🗑️</button>
       </span>
     </div>
   `).join("");
+
+  wireDragReorder(controller, container, containerId, items);
 
   // ✏️: the row turns into a text box with ✓ (save) / ✕ (cancel) in place -
   // no prompt(), which Telegram's WebView doesn't support (same as confirm()).
@@ -545,6 +562,85 @@ function renderManageList(controller, containerId) {
       } catch (e) {
         showToast("Xatolik: " + e.message, true);
       }
+    });
+  });
+}
+
+/**
+ * ⠿ drag handle in the "manage" modals: press and drag a row up/down, let go
+ * to save the new order (the dropdown/suggestions then list names in that
+ * order). Built on pointer events, not HTML5 drag-and-drop, which doesn't
+ * work with touch - Telegram on phones is the main place this is used.
+ * Dragging near the top/bottom edge scrolls the modal.
+ */
+function wireDragReorder(controller, container, containerId, items) {
+  const scroller = container.closest(".modal") || container;
+  container.querySelectorAll(".drag-handle").forEach((handle) => {
+    handle.addEventListener("pointerdown", (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      const row = handle.closest(".list-item");
+      const startIdx = Number(row.dataset.row);
+      row.classList.add("dragging");
+      // In Telegram on a phone a downward drag would otherwise pull the whole
+      // Mini App closed - swipe-to-close is off just while a row is dragged.
+      const swipes = typeof tg !== "undefined" && tg && tg.disableVerticalSwipes;
+      if (swipes) tg.disableVerticalSwipes();
+      // Listened for on the whole window, not via pointer capture on the
+      // handle: moving the row in the DOM releases the capture, which froze
+      // the drag after its first step.
+      let lastY = e.clientY;
+      let scrollTimer = null;
+
+      const placeAt = (y) => {
+        const rows = [...container.querySelectorAll(".list-item")].filter((r) => r !== row);
+        const before = rows.find((r) => {
+          const b = r.getBoundingClientRect();
+          return y < b.top + b.height / 2;
+        });
+        if (before) {
+          if (row.nextElementSibling !== before) container.insertBefore(row, before);
+        } else if (container.lastElementChild !== row) {
+          container.appendChild(row);
+        }
+      };
+      const autoScroll = () => {
+        const b = scroller.getBoundingClientRect();
+        const edge = 60;
+        let dy = 0;
+        if (lastY < b.top + edge) dy = -12;
+        else if (lastY > b.bottom - edge) dy = 12;
+        if (dy) { scroller.scrollTop += dy; placeAt(lastY); }
+      };
+      const onMove = (ev) => {
+        if (ev.pointerId !== e.pointerId) return;
+        ev.preventDefault();
+        lastY = ev.clientY;
+        placeAt(lastY);
+      };
+      const onUp = async (ev) => {
+        if (ev.pointerId !== e.pointerId) return;
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+        clearInterval(scrollTimer);
+        row.classList.remove("dragging");
+        if (swipes) tg.enableVerticalSwipes();
+        const order = [...container.querySelectorAll(".list-item")].map((r) => items[Number(r.dataset.row)]);
+        const newIdx = order.indexOf(items[startIdx]);
+        if (newIdx === startIdx) return;   // dropped where it was
+        try {
+          await controller.reorder(order);
+          showToast("✅ Tartib saqlandi");
+        } catch (err) {
+          showToast("Xatolik: " + err.message, true);
+        }
+        renderManageList(controller, containerId);
+      };
+      scrollTimer = setInterval(autoScroll, 30);
+      window.addEventListener("pointermove", onMove, { passive: false });
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
     });
   });
 }
