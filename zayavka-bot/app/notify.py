@@ -14,11 +14,12 @@ import tempfile
 from typing import Optional
 
 from aiogram import Bot
-from aiogram.types import FSInputFile
+from aiogram.types import FSInputFile, InputMediaDocument
 
 from app.config import ALLOWED_GROUP_IDS, PERSON_ROUTES, POST_UNROUTED_TO_DEFAULT
+from app.db import SessionLocal
 from app.excel_gen import save_workbook
-from app.models import Zayavka
+from app.models import Zayavka, SentDocument
 
 logger = logging.getLogger("zayavka-notify")
 
@@ -43,6 +44,69 @@ def build_caption(zayavka: Zayavka, updated: bool = False, header: Optional[str]
     if header is None:
         header = "✏️ Zayavka yangilandi!" if updated else "✅ Zayavka yuborildi!"
     return build_caption_from_dict(zayavka.to_dict(), header)
+
+
+def _remember_sent(zayavka_id: int, messages: list) -> None:
+    """Records (chat_id, message_id) of zayavka Excel messages just sent."""
+    if not messages:
+        return
+    db = SessionLocal()
+    try:
+        for msg in messages:
+            db.add(SentDocument(zayavka_id=zayavka_id, chat_id=msg.chat.id, message_id=msg.message_id))
+        db.commit()
+    except Exception:
+        logger.exception("Could not record sent documents for zayavka %s", zayavka_id)
+    finally:
+        db.close()
+
+
+async def replace_old_documents(bot: Bot, zayavka_id: int, keep_ids: set, new_path: str, caption: str) -> None:
+    """
+    After an edited zayavka has been re-sent: every earlier Excel message of
+    it (anything recorded except the ones just sent, `keep_ids`) is deleted so
+    nobody prints an outdated copy by mistake. Telegram only lets a bot delete
+    its own messages for 48 hours in a private chat, or in a channel/group
+    where it lacks the "delete messages" admin right; for those the file in
+    the old message is swapped for the new version instead, and the record is
+    kept so a later edit updates it again.
+    """
+    db = SessionLocal()
+    try:
+        old = (
+            db.query(SentDocument)
+            .filter(SentDocument.zayavka_id == zayavka_id)
+            .all()
+        )
+        for row in old:
+            if row.id in keep_ids:
+                continue
+            try:
+                await bot.delete_message(row.chat_id, row.message_id)
+                db.delete(row)
+                continue
+            except Exception as e:
+                logger.info("Could not delete old zayavka message %s/%s (%s) - replacing its file",
+                            row.chat_id, row.message_id, e)
+            try:
+                await bot.edit_message_media(
+                    media=InputMediaDocument(
+                        media=FSInputFile(new_path),
+                        caption="♻️ <i>Bu xabardagi fayl yangi versiyaga almashtirildi</i>\n\n" + caption,
+                        parse_mode="HTML",
+                    ),
+                    chat_id=row.chat_id,
+                    message_id=row.message_id,
+                )
+            except Exception as e:
+                if "message to edit not found" in str(e) or "message can't be edited" in str(e):
+                    db.delete(row)   # gone already (deleted by hand) - nothing left to fix
+                logger.warning("Could not replace old zayavka message %s/%s: %s", row.chat_id, row.message_id, e)
+        db.commit()
+    except Exception:
+        logger.exception("Cleaning up old documents of zayavka %s failed", zayavka_id)
+    finally:
+        db.close()
 
 
 async def send_dict_to_chat(bot: Bot, d: dict, chat_id: int, header: str) -> bool:
@@ -91,7 +155,30 @@ async def send_report_file(bot: Bot, path: str, caption: str, chat_ids: list) ->
 
 
 async def send_zayavka_to_chat(bot: Bot, zayavka: Zayavka, chat_id: int) -> bool:
-    return await send_dict_to_chat(bot, zayavka.to_dict(), chat_id, "📄 Zayavka Excel")
+    """The latest Excel to one chat ("send me") - recorded, so a later edit removes this copy too."""
+    tmp_dir = tempfile.mkdtemp(prefix="zayavka_")
+    tmp_path = None
+    try:
+        d = zayavka.to_dict()
+        tmp_path = save_workbook(d, tmp_dir)
+        msg = await bot.send_document(
+            chat_id,
+            FSInputFile(tmp_path),
+            caption=build_caption_from_dict(d, "📄 Zayavka Excel"),
+            parse_mode="HTML",
+        )
+        _remember_sent(zayavka.id, [msg])
+        return True
+    except Exception:
+        logger.exception("Failed to re-send zayavka document to chat %s", chat_id)
+        return False
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+                os.rmdir(os.path.dirname(tmp_path))
+            except OSError:
+                pass
 
 
 async def send_zayavka_document(
@@ -103,18 +190,21 @@ async def send_zayavka_document(
     that person's PERSON_ROUTES chat (if "От кого" matches one). A person with
     no chat is NOT posted to the shared channel (unless POST_UNROUTED_TO_DEFAULT
     is set) - a form must never appear in a channel that isn't its applier's.
+    When `updated`, the earlier Excel messages of this zayavka are then removed
+    (replace_old_documents), so only the latest version is left to print.
     """
     tmp_dir = tempfile.mkdtemp(prefix="zayavka_")
     tmp_path = None
+    sent = []
     try:
         tmp_path = save_workbook(zayavka.to_dict(), tmp_dir)
         caption = build_caption(zayavka, updated=updated)
 
         if notify_chat_id:
             try:
-                await bot.send_document(
+                sent.append(await bot.send_document(
                     notify_chat_id, FSInputFile(tmp_path), caption=caption, parse_mode="HTML"
-                )
+                ))
             except Exception:
                 logger.exception("Failed to send zayavka document to submitter %s", notify_chat_id)
 
@@ -134,11 +224,30 @@ async def send_zayavka_document(
             if chat_id == notify_chat_id:
                 continue  # already sent above
             try:
-                await bot.send_document(
+                sent.append(await bot.send_document(
                     chat_id, FSInputFile(tmp_path), caption=caption, parse_mode="HTML"
-                )
+                ))
             except Exception:
                 logger.exception("Failed to post zayavka document to chat %s", chat_id)
+
+        # Remember what was just sent, then clear out the older copies - only
+        # once the new version went out, so a failed send never leaves nothing.
+        new_ids = set()
+        if sent:
+            db = SessionLocal()
+            try:
+                for msg in sent:
+                    row = SentDocument(zayavka_id=zayavka.id, chat_id=msg.chat.id, message_id=msg.message_id)
+                    db.add(row)
+                    db.flush()
+                    new_ids.add(row.id)
+                db.commit()
+            except Exception:
+                logger.exception("Could not record sent documents for zayavka %s", zayavka.id)
+            finally:
+                db.close()
+        if updated and sent:
+            await replace_old_documents(bot, zayavka.id, new_ids, tmp_path, caption)
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:

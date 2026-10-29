@@ -294,6 +294,23 @@ class BotMenuMessage(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class SentDocument(Base):
+    """
+    A zayavka Excel the bot posted (to the submitter's chat or the person's
+    channel). When the zayavka is edited and re-sent, these older messages are
+    deleted - or, where Telegram won't let the bot delete them, their file is
+    swapped for the new version - so no outdated copy is left to print by
+    mistake (see replace_old_documents in app/notify.py).
+    """
+    __tablename__ = "sent_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    zayavka_id = Column(Integer, nullable=False, index=True)
+    chat_id = Column(BigInteger, nullable=False)
+    message_id = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class NameOption(Base):
     """
     Growable dropdown/autocomplete options: the approval/signature block
