@@ -189,6 +189,39 @@ def python_running(pid):
     return "python" in out.lower()
 
 
+PROTECTION_OPTIONS = ("AllowFormattingCells", "AllowFormattingColumns", "AllowFormattingRows",
+                      "AllowInsertingColumns", "AllowInsertingRows", "AllowInsertingHyperlinks",
+                      "AllowDeletingColumns", "AllowDeletingRows", "AllowSorting", "AllowFiltering",
+                      "AllowUsingPivotTables")
+
+
+def lift_protection(wb):
+    """Unprotect sheets protected without a password; remember their settings."""
+    lifted = []
+    for ws in wb.Worksheets:
+        if not ws.ProtectContents:
+            continue
+        settings = {o: getattr(ws.Protection, o) for o in PROTECTION_OPTIONS}
+        settings.update(DrawingObjects=ws.ProtectDrawingObjects, Scenarios=ws.ProtectScenarios)
+        try:
+            ws.Unprotect("")
+        except Exception:
+            log.warning("Sheet «%s» is protected with a password - left as is", ws.Name)
+            continue
+        lifted.append((ws.Name, settings))
+    if lifted:
+        log.info("Protection lifted for the refresh: %s", ", ".join(n for n, _ in lifted))
+    return lifted
+
+
+def restore_protection(wb, lifted):
+    for name, settings in lifted:
+        try:
+            wb.Worksheets(name).Protect(Password="", Contents=True, **settings)
+        except Exception:
+            log.warning("Could not protect sheet «%s» again", name)
+
+
 def refresh(path, days):
     """Refresh the month file once, then prepare every day in `days` (same month)."""
     import pythoncom
@@ -211,6 +244,7 @@ def refresh(path, days):
     watchdog.daemon = True
     watchdog.start()
     wb = None
+    protected = []
     try:
         # 1. open
         log.info("Opening %s", path)
@@ -235,6 +269,8 @@ def refresh(path, days):
                 conn.OLEDBConnection.BackgroundQuery = False  # makes RefreshAll wait
             except Exception:
                 pass
+        # Power Query must be able to add/remove rows: lift sheet protection while refreshing
+        protected = lift_protection(wb)
         log.info("Refresh All ...")
         started = time.time()
         wb.RefreshAll()
@@ -246,8 +282,12 @@ def refresh(path, days):
         excel.CalculateFull()
         log.info("Refresh finished in %.0f s", time.time() - started)
 
+        restore_protection(wb, protected)  # refresh is done: protect the sheets again
+        protected = []
+
         # one report per day: set the date, recalculate, keep its text and a copy of the file
         os.makedirs(os.path.join(STATE_DIR, "files"), exist_ok=True)
+        texts = {}
         for day in days:
             date_cell.Value2 = (day - EXCEL_EPOCH).days
             excel.CalculateFull()
@@ -257,13 +297,16 @@ def refresh(path, days):
                 wb.SaveCopyAs(snapshot)
             elif os.path.exists(snapshot):
                 os.remove(snapshot)  # the monthly file itself is now the right one
-            with open(os.path.join(STATE_DIR, f"refreshed_{day}.txt"), "w", encoding="utf-8") as f:
-                f.write(text)
+            texts[day] = text
             log.info("Prepared report for %s", day)
 
         # 4. save (the file stays on the latest day)
         wb.Save()
         log.info("Saved")
+        # only now do the days count as refreshed - send_telegram.py relies on this
+        for day, text in texts.items():
+            with open(os.path.join(STATE_DIR, f"refreshed_{day}.txt"), "w", encoding="utf-8") as f:
+                f.write(text)
     except Exception:
         if timed_out.is_set():
             raise TimeoutError(f"Excel did not finish in {REFRESH_TIMEOUT_MIN} min and was killed "
@@ -272,6 +315,8 @@ def refresh(path, days):
     finally:
         # 5. exit
         watchdog.cancel()
+        if protected and wb is not None:
+            restore_protection(wb, protected)
         for close in (lambda: wb.Close(SaveChanges=False) if wb is not None else None, excel.Quit):
             try:
                 close()
