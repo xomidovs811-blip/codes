@@ -153,15 +153,40 @@ def kill_leftover_excel():
 
 
 def single_run_lock():
-    """Return True if no other refresh is running (stale locks are taken over)."""
+    """Return True if no other refresh is running.
+
+    The lock file holds the PID of the run that made it; a lock whose process
+    is gone (crashed or killed run) or that is very old is taken over.
+    """
     lock = os.path.join(STATE_DIR, "refresh.lock")
-    if os.path.exists(lock) and time.time() - os.path.getmtime(lock) > (REFRESH_TIMEOUT_MIN + 10) * 60:
-        os.remove(lock)
+    if os.path.exists(lock):
+        try:
+            with open(lock) as f:
+                pid = int(f.read().strip() or 0)
+        except (OSError, ValueError):
+            pid = 0
+        too_old = time.time() - os.path.getmtime(lock) > (REFRESH_TIMEOUT_MIN + 10) * 60
+        if too_old or not pid or not python_running(pid):
+            log.warning("Removing a leftover lock from an earlier run")
+            os.remove(lock)
     try:
-        os.close(os.open(lock, os.O_CREAT | os.O_EXCL))
-        return True
+        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
         return False
+    with os.fdopen(fd, "w") as f:
+        f.write(str(os.getpid()))
+    return True
+
+
+def python_running(pid):
+    if os.name != "nt":
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
+    out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], capture_output=True, text=True).stdout
+    return "python" in out.lower()
 
 
 def refresh(path, days):

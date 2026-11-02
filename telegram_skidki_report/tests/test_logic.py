@@ -50,7 +50,13 @@ class RunLock(unittest.TestCase):
             lock = os.path.join(d, "refresh.lock")
             old = os.path.getmtime(lock) - 3600
             os.utime(lock, (old, old))
-            self.assertTrue(rr.single_run_lock())  # stale lock from a crashed run is taken over
+            self.assertTrue(rr.single_run_lock())  # very old lock is taken over
+            with open(lock, "w") as f:
+                f.write("999999")  # a run that no longer exists
+            self.assertTrue(rr.single_run_lock())
+            with open(lock, "w") as f:
+                f.write("")  # lock from an older version (no PID)
+            self.assertTrue(rr.single_run_lock())
 
 
 class CatchUp(unittest.TestCase):
