@@ -67,6 +67,9 @@ def telegram(method, data, files=None):
             result = r.json()
             if result.get("ok"):
                 return result["result"]
+            if r.status_code == 401:
+                raise RuntimeError("Telegram: bot token is wrong or was changed - "
+                                   "run «Сменить токен бота» (set_token.bat) and enter the new token")
             if r.status_code == 429:
                 time.sleep(result.get("parameters", {}).get("retry_after", 5))
                 continue
