@@ -48,6 +48,8 @@ NUMBER_VALUE_FONT = Font(name="Calibri", size=24)
 TABLE_HEADER_FONT = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
 HELPER_HEADER_FONT = Font(name="Calibri", size=11)
 ITEM_FONT = Font(name="Calibri", size=11)
+# Наименование товара is what people read most - one size up from the rest.
+PRODUCT_FONT = Font(name="Calibri", size=13)
 HELPER_FONT = Font(name="Calibri", size=11)
 SUBTOTAL_FONT = Font(name="Calibri", size=11, bold=True, color=NAVY)
 TOTAL_ROW_FONT = Font(name="Calibri", size=12, bold=True, color="FFFFFF")
@@ -139,6 +141,18 @@ def _group_by_supplier(items: list) -> list:
         else:
             groups.append((supplier, [item]))
     return groups
+
+
+def _product_row_height(text: str) -> float:
+    """
+    Row height that fits the whole Наименование товара at 13pt. openpyxl
+    can't auto-fit, and Excel won't grow a row whose height is set, so the
+    wrapped line count is estimated from the column width (43 chars at 11pt
+    ~ 34 at 13pt, a little narrower for safety with Cyrillic).
+    """
+    per_line = 34
+    lines = sum(max(1, -(-len(part) // per_line)) for part in (text or "").split("\n"))
+    return max(25.05, lines * 17.5 + 6)
 
 
 def _num(v) -> float:
@@ -254,7 +268,7 @@ def build_workbook(zayavka: dict) -> Workbook:
         sub = [0.0, 0.0, 0.0]
         for item in group_items:
             product_name = item.get("product_name") or ""
-            ws.row_dimensions[r].height = 31.95 if "\n" in product_name else 25.05
+            ws.row_dimensions[r].height = _product_row_height(product_name)
             ws.cell(row=r, column=1, value=tr_no).alignment = CENTER_NOWRAP           # A т/р
             ws.cell(row=r, column=2, value=product_name).alignment = WRAP_MID         # B
             ws.cell(row=r, column=3, value=item.get("supplier") or "").alignment = LEFT_MID       # C
@@ -286,7 +300,9 @@ def build_workbook(zayavka: dict) -> Workbook:
 
             for col in range(1, 14):
                 ws.cell(row=r, column=col).border = BORDER
-                if col != 3:
+                if col == 2:
+                    ws.cell(row=r, column=col).font = PRODUCT_FONT
+                elif col != 3:
                     ws.cell(row=r, column=col).font = ITEM_FONT
             r += 1
             tr_no += 1
