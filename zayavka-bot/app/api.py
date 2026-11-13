@@ -894,21 +894,21 @@ def restore_zayavka(
 
 @app.get("/api/backup/files")
 def backup_files(db: Session = Depends(get_db), access: Access = Depends(current_access)):
-    """Admin only: the archive folder by month, each file marked whether it's already in the system."""
-    if not access.is_admin:
-        raise HTTPException(status_code=403, detail="Faqat administrator back-up qila oladi")
+    """The archive folder by month, each file marked whether it's already in the system."""
+    if not access.may_backup:
+        raise HTTPException(status_code=403, detail="Sizga \"Back-up qilish\" ruxsati berilmagan")
     return list_archive(db)
 
 
 @app.post("/api/backup/restore")
 async def backup_restore(payload: BackupRestoreIn, access: Access = Depends(current_access)):
     """
-    Admin only: re-creates the zayavkas of the chosen archive files that are
+    Admins and users given "Back-up qilish": re-creates the zayavkas of the chosen archive files that are
     NOT in the system (matched by Номер заявки); existing ones are skipped.
-    The detailed Excel report goes to the admin's own Telegram chat.
+    The detailed Excel report goes to the requester's own Telegram chat.
     """
-    if not access.is_admin:
-        raise HTTPException(status_code=403, detail="Faqat administrator back-up qila oladi")
+    if not access.may_backup:
+        raise HTTPException(status_code=403, detail="Sizga \"Back-up qilish\" ruxsati berilmagan")
     if not payload.files:
         raise HTTPException(status_code=400, detail="Fayl tanlanmagan")
     who = access.name or str(access.user_id)
@@ -1040,6 +1040,8 @@ def _guard_grant(actor: Access, perms: dict, role: Optional[str], persons, objec
             continue
         if key == "can_manage_users":
             raise HTTPException(status_code=403, detail="\"Foydalanuvchi qo'shish\" ruxsatini faqat administrator bera oladi")
+        if key == "can_backup":
+            raise HTTPException(status_code=403, detail="\"Back-up qilish\" ruxsatini faqat administrator bera oladi")
         if not getattr(actor, key):
             raise HTTPException(
                 status_code=403,

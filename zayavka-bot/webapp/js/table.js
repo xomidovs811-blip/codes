@@ -606,7 +606,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   showCreator = !!(currentMe.is_admin || currentMe.can_view_others);
   document.getElementById("fCreatorField").style.display = showCreator ? "" : "none";
   document.getElementById("exportBtn").style.display = currentMe.can_report ? "" : "none";
-  document.getElementById("backupBtn").style.display = currentMe.is_admin ? "" : "none";
+  document.getElementById("backupBtn").style.display = (currentMe.is_admin || currentMe.can_backup) ? "" : "none";
   document.getElementById("reqBtn").addEventListener("click", submitRegister);
   document.getElementById("phoneBtn").addEventListener("click", sharePhone);
   if (currentMe.status === "pending" || currentMe.status === "blocked" || currentMe.can_view === false) return;

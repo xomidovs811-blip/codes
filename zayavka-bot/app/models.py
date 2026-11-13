@@ -175,6 +175,7 @@ PERMISSION_DEFAULTS = {
     "can_report": True,            # send the filtered Excel report to the channel
     "can_manage_lists": True,      # delete entries of the supplier / unit / work-type / name lists
     "can_manage_users": False,     # add and manage users (limited to what the user may grant)
+    "can_backup": False,           # "Back-up qilish": restore zayavkas from the archive (only an admin grants it)
 }
 PERMISSION_KEYS = tuple(PERMISSION_DEFAULTS)
 
@@ -221,6 +222,7 @@ class AppUser(Base):
     can_report = Column(Boolean, nullable=False, default=True, server_default="1")
     can_manage_lists = Column(Boolean, nullable=False, default=True, server_default="1")
     can_manage_users = Column(Boolean, nullable=False, default=False, server_default="0")
+    can_backup = Column(Boolean, nullable=False, default=False, server_default="0")
     requested_person = Column(String(255), nullable=True)
     note = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

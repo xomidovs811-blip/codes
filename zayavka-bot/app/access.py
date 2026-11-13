@@ -91,6 +91,8 @@ PERMISSION_CATALOG = [
      "desc": "Yetkazib beruvchi, birlik, ish turi va ismlar ro'yxatidan o'chirish"},
     {"key": "can_manage_users", "group": "admin", "label": "Foydalanuvchi qo'shish",
      "desc": "Foydalanuvchilarni qo'shish va ruxsat berish (faqat o'zida bor ruxsatlar doirasida)"},
+    {"key": "can_backup", "group": "admin", "label": "Back-up qilish",
+     "desc": "«Zayavkalar» arxividan tizimda yo'q zayavkalarni tiklash (faqat administrator bera oladi)"},
 ]
 assert [p["key"] for p in PERMISSION_CATALOG] == list(PERMISSION_KEYS)
 
@@ -116,6 +118,7 @@ class Access:
     can_report: bool = True
     can_manage_lists: bool = True
     can_manage_users: bool = False
+    can_backup: bool = False
 
     @property
     def active(self) -> bool:
@@ -125,6 +128,11 @@ class Access:
     def is_manager(self) -> bool:
         """May open the users page: admins, and users who were given "add users"."""
         return self.is_admin or (self.active and self.can_manage_users)
+
+    @property
+    def may_backup(self) -> bool:
+        """"Back-up qilish": admins, and users an admin gave the permission to."""
+        return self.is_admin or (self.active and self.can_backup)
 
     def perms(self) -> Dict[str, bool]:
         return {key: bool(getattr(self, key)) for key in PERMISSION_KEYS}
@@ -188,7 +196,7 @@ class Access:
 def admin_access_for(user_id: int, name: str, owner: bool) -> Access:
     return Access(
         user_id=user_id, name=name, is_admin=True, persons=set(all_persons()), status="admin",
-        objects=None, is_owner=owner, can_view_others=True, can_manage_users=True,
+        objects=None, is_owner=owner, can_view_others=True, can_manage_users=True, can_backup=True,
     )
 
 

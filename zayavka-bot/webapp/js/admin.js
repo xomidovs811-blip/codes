@@ -26,6 +26,7 @@ const ICONS = {
   userplus: '<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>',
   left: '<polyline points="15 18 9 12 15 6"/>',
   right: '<polyline points="9 18 15 12 9 6"/>',
+  archive: '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
 };
 const icon = (name, cls = "") =>
   `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
@@ -33,14 +34,17 @@ const icon = (name, cls = "") =>
 const PERM_ICON = {
   can_view: "eye", can_view_others: "users", can_view_all_objects: "layers", can_create: "plus",
   can_edit: "edit", can_delete: "trash", can_export: "download", can_report: "send",
-  can_manage_lists: "list", can_manage_users: "userplus",
+  can_manage_lists: "list", can_manage_users: "userplus", can_backup: "archive",
 };
 // Short checkbox labels (the full explanation is the title= tooltip, from the server's catalog).
 const PERM_SHORT = {
   can_view: "O'qish", can_view_others: "Boshqalarniki", can_view_all_objects: "Barcha obyektlar",
   can_create: "To'ldirish", can_edit: "Tahrirlash", can_delete: "O'chirish", can_export: "Fayl yuklash",
   can_report: "Hisobot", can_manage_lists: "Ro'yxatlar", can_manage_users: "Foydalanuvchi qo'shish",
+  can_backup: "Back-up qilish",
 };
+// Only a real administrator may give these out (a user with "add users" can't).
+const ADMIN_ONLY_PERMS = ["can_manage_users", "can_backup"];
 
 const STATUS = {
   approved: { label: "Aktiv", cls: "st-ok" },
@@ -116,7 +120,7 @@ function applyData(data) {
   });
 }
 
-const canGrant = (key) => S.me.is_admin || (key !== "can_manage_users" && !!S.me.perms[key]);
+const canGrant = (key) => S.me.is_admin || (!ADMIN_ONLY_PERMS.includes(key) && !!S.me.perms[key]);
 const canTouch = (u) => !u.owner && (S.me.is_admin || !(isAdminRole(u) || u.can_manage_users));
 const isSelf = (u) => u.telegram_id != null && u.telegram_id === S.me.user_id;
 
@@ -143,7 +147,7 @@ function chipsHtml(names, selectedSet, kind, uid, disabled, allowed) {
 function permCheckboxesHtml(u, disabled) {
   return S.catalog.map((p) => {
     const on = !!u[p.key];
-    const dis = disabled || (!on && !canGrant(p.key)) || (p.key === "can_manage_users" && !S.me.is_admin);
+    const dis = disabled || (!on && !canGrant(p.key)) || (ADMIN_ONLY_PERMS.includes(p.key) && !S.me.is_admin);
     return `<label class="am-cb ${dis ? "dis" : ""}" title="${esc(p.desc)}">
       <input type="checkbox" data-kind="perm" data-uid="${u.id}" data-perm="${p.key}" ${on ? "checked" : ""} ${dis ? "disabled" : ""} />
       ${icon(PERM_ICON[p.key] || "check")}<span>${esc(PERM_SHORT[p.key] || p.label)}</span>
@@ -343,7 +347,7 @@ function renderAll() {
 function permGroupsHtmlForAdd() {
   return S.catalog.map((p) => {
     const on = !!ADD.perms[p.key];
-    const dis = (!on && !canGrant(p.key)) || (p.key === "can_manage_users" && !S.me.is_admin);
+    const dis = (!on && !canGrant(p.key)) || (ADMIN_ONLY_PERMS.includes(p.key) && !S.me.is_admin);
     return `<label class="am-cb ${dis ? "dis" : ""}" title="${esc(p.desc)}">
       <input type="checkbox" data-kind="add-perm" data-perm="${p.key}" ${on ? "checked" : ""} ${dis ? "disabled" : ""} />
       ${icon(PERM_ICON[p.key] || "check")}<span>${esc(PERM_SHORT[p.key] || p.label)}</span>

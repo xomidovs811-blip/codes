@@ -76,6 +76,7 @@ _APP_USER_NEW_COLUMNS = {
     "can_report": "BOOLEAN NOT NULL DEFAULT 1",
     "can_manage_lists": "BOOLEAN NOT NULL DEFAULT 1",
     "can_manage_users": "BOOLEAN NOT NULL DEFAULT 0",
+    "can_backup": "BOOLEAN NOT NULL DEFAULT 0",
 }
 
 

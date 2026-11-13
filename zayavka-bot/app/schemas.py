@@ -73,6 +73,7 @@ class PermsIn(BaseModel):
     can_report: Optional[bool] = None
     can_manage_lists: Optional[bool] = None
     can_manage_users: Optional[bool] = None
+    can_backup: Optional[bool] = None
 
 
 class AdminUserIn(PermsIn):
