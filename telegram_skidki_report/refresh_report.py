@@ -222,6 +222,22 @@ def restore_protection(wb, lifted):
             log.warning("Could not protect sheet «%s» again", name)
 
 
+def refresh_pivots(wb):
+    """Refresh every PivotTable after Power Query has loaded the data."""
+    names = []
+    for ws in wb.Worksheets:
+        pts = ws.PivotTables()
+        for i in range(1, pts.Count + 1):
+            pt = pts.Item(i)
+            try:
+                pt.PivotCache().Refresh()
+                names.append(f"{ws.Name}/{pt.Name}")
+            except Exception as e:
+                raise RuntimeError(f"PivotTable «{pt.Name}» on sheet «{ws.Name}» could not be refreshed: {e}")
+    if names:
+        log.info("PivotTables refreshed: %s", ", ".join(names))
+
+
 def refresh(path, days):
     """Refresh the month file once, then prepare every day in `days` (same month)."""
     import pythoncom
@@ -279,6 +295,7 @@ def refresh(path, days):
             if time.time() - started > REFRESH_TIMEOUT_MIN * 60:
                 raise TimeoutError("Refresh did not finish in time")
             time.sleep(2)
+        refresh_pivots(wb)  # pivots (e.g. «Скидки сотрудникам») must see the new data
         excel.CalculateFull()
         log.info("Refresh finished in %.0f s", time.time() - started)
 
