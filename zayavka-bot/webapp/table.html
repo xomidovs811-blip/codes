@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Zayavkalar jadvali</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="css/style.css?v=42" />
+<link rel="stylesheet" href="css/style.css?v=45" />
 </head>
 <body data-root="1">
 <div class="page wide">
@@ -101,7 +101,10 @@
   <div class="card table-card" id="tableCard">
     <div class="result-head">
       <h2 id="resultCount">Yuklanmoqda...</h2>
-      <button type="button" class="btn btn-secondary" id="exportBtn">📊 Excelga yuklab olish (Telegramga yuborish)</button>
+      <span style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-secondary" id="exportBtn">📊 Excelga yuklab olish (Telegramga yuborish)</button>
+        <button type="button" class="btn btn-secondary" id="backupBtn" style="display:none;">🗄️ Back-up qilish</button>
+      </span>
     </div>
     <p class="hint">Qatorni bosing - to'ldirish/tahrirlash formasi ochiladi. 📥 oxirgi versiya Excel faylini yuklab oladi, 📨 uni Telegram chatingizga qayta yuboradi, 🕘 Tarix - barcha eski versiyalar.</p>
     <div class="table-wrap">
@@ -143,7 +146,27 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="backupModalBackdrop">
+  <div class="modal">
+    <button type="button" class="modal-close" id="backupModalClose">✕</button>
+    <h2 style="margin-top:0;">🗄️ Back-up qilish</h2>
+    <p class="hint" style="margin-top:-4px;">
+      «Zayavkalar» arxivi: har oy alohida papka, har zayavka alohida Excel fayl (barcha versiyalari bilan).
+      Oy yoki fayllarni tanlang - tizimda <b>yo'q</b> zayavkalar tiklanadi, bor bo'lganlari o'zgartirilmaydi.
+      Natija Excel hisobot qilib Telegram chatingizga yuboriladi.
+    </p>
+    <div class="hint" id="backupDir" style="word-break:break-all;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <button type="button" class="btn btn-secondary" id="backupSelectMissing">⬆️ Faqat tizimda yo'qlarini tanlash</button>
+      <button type="button" class="btn btn-secondary" id="backupSelectNone">Tanlovni tozalash</button>
+    </div>
+    <div id="backupList" class="backup-list"></div>
+    <div class="export-status" id="backupStatus"></div>
+    <button class="btn btn-primary btn-block" id="backupRestoreBtn" type="button" disabled>♻️ Tanlanganlarni tiklash</button>
+  </div>
+</div>
+
 <script src="js/common.js?v=37"></script>
-<script src="js/table.js?v=38"></script>
+<script src="js/table.js?v=39"></script>
 </body>
 </html>

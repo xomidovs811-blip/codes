@@ -62,6 +62,14 @@ POST_UNROUTED_TO_DEFAULT = os.getenv("POST_UNROUTED_TO_DEFAULT", "0").strip() ==
 # truth. Unprotect in Excel with Review -> Unprotect Sheet -> this password.
 EXCEL_SHEET_PASSWORD = os.getenv("EXCEL_SHEET_PASSWORD", "123")
 
+# The "Zayavkalar" backup archive: one Excel file per zayavka (every version on
+# its own sheet) in a folder per month, e.g. Zayavkalar\2026-03\. Defaults to a
+# "Zayavkalar" folder next to the app; point ARCHIVE_DIR at another disk or a
+# synced cloud folder (OneDrive, Google Drive) so a copy survives a disk failure.
+ARCHIVE_DIR = os.getenv("ARCHIVE_DIR", "").strip() or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Zayavkalar"
+)
+
 # --- Reference lists, taken from the "справочник" sheet of your real
 # working template (15.09.2026-2.xlsx) - this is the source of truth now. ---
 

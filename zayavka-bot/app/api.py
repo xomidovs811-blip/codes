@@ -1,3 +1,4 @@
+import asyncio
 import html
 import logging
 import os
@@ -24,7 +25,7 @@ from app.models import (
     Zayavka, ZayavkaItem, ZayavkaVersion, NameOption, AppUser, PERMISSION_DEFAULTS, PERMISSION_KEYS,
 )
 from app.schemas import (
-    ZayavkaIn, NameOptionIn, NameOptionRename, NameOptionOrder, ExportIn, AdminUserIn, AdminUserPatch, AccessRequestIn,
+    ZayavkaIn, NameOptionIn, NameOptionRename, NameOptionOrder, BackupRestoreIn, ExportIn, AdminUserIn, AdminUserPatch, AccessRequestIn,
 )
 from app.services import (
     create_zayavka_record, update_zayavka_record, backfill_versions, seed_default_work_types,
@@ -34,6 +35,9 @@ from app.notify import (
 )
 from app.report_gen import save_report, build_report_caption
 from app.excel_gen import save_workbook
+from app.archive import (
+    archive_later, sync_archive_later, list_archive, restore_files, build_restore_report,
+)
 from app.config import (
     OBJECTS, FROM_WHOM, PAYMENT_TYPES, FIXED_KOMU, BOT_TOKEN, PERSON_ROUTES, ADMIN_IDS,
 )
@@ -72,6 +76,9 @@ def on_startup():
         seed_default_work_types(db)
     finally:
         db.close()
+    # Archive (Zayavkalar folder) every zayavka whose file is missing or out
+    # of date - in the background, so a big first run doesn't delay start-up.
+    sync_archive_later()
 
 
 @app.on_event("shutdown")
@@ -386,6 +393,7 @@ async def create_zayavka(
     )
 
     await send_zayavka_document(bot, zayavka, notify_chat_id=access.user_id)
+    archive_later(zayavka.id)
 
     return zayavka.to_dict()
 
@@ -427,6 +435,7 @@ async def edit_zayavka(
         raise HTTPException(status_code=404, detail="Not found")
 
     await send_zayavka_document(bot, zayavka, notify_chat_id=access.user_id, updated=True)
+    archive_later(zayavka.id)
 
     return zayavka.to_dict()
 
@@ -859,6 +868,8 @@ def delete_zayavka(
         z.deleted_by = access.name or str(access.user_id)
         logger.info("Zayavka %s (%s) deleted by %s (tg id %s)", z.id, z.number, access.name, access.user_id)
     db.commit()
+    if not permanent:
+        archive_later(zayavka_id)   # the archive file notes it was deleted (an erased one keeps its file)
     return {"ok": True}
 
 
@@ -875,7 +886,54 @@ def restore_zayavka(
     z.deleted_at = None
     z.deleted_by = None
     db.commit()
+    archive_later(zayavka_id)
     return {"ok": True}
+
+
+# ---------- "Back-up qilish": restore zayavkas from the Zayavkalar archive ----------
+
+@app.get("/api/backup/files")
+def backup_files(db: Session = Depends(get_db), access: Access = Depends(current_access)):
+    """Admin only: the archive folder by month, each file marked whether it's already in the system."""
+    if not access.is_admin:
+        raise HTTPException(status_code=403, detail="Faqat administrator back-up qila oladi")
+    return list_archive(db)
+
+
+@app.post("/api/backup/restore")
+async def backup_restore(payload: BackupRestoreIn, access: Access = Depends(current_access)):
+    """
+    Admin only: re-creates the zayavkas of the chosen archive files that are
+    NOT in the system (matched by Номер заявки); existing ones are skipped.
+    The detailed Excel report goes to the admin's own Telegram chat.
+    """
+    if not access.is_admin:
+        raise HTTPException(status_code=403, detail="Faqat administrator back-up qila oladi")
+    if not payload.files:
+        raise HTTPException(status_code=400, detail="Fayl tanlanmagan")
+    who = access.name or str(access.user_id)
+    results = await asyncio.to_thread(restore_files, payload.files)
+    counts = {s: sum(1 for r in results if r["status"] == s) for s in ("restored", "exists", "error")}
+    logger.info("Backup restore by %s (tg id %s): %d files, %s", who, access.user_id, len(results), counts)
+    if counts["restored"]:
+        sync_archive_later()   # bring _index.json up to date for the restored ones
+
+    when = datetime.now(timezone.utc).astimezone(timezone(TASHKENT_OFFSET)).replace(tzinfo=None)
+    tmp_dir = tempfile.mkdtemp(prefix="zayavka_backup_")
+    try:
+        path = build_restore_report(results, who, when, tmp_dir)
+        caption = (
+            f"🗄 <b>Back-up hisobot</b>\n"
+            f"Fayllar: {len(results)}\n"
+            f"✅ Tiklandi: {counts['restored']}\n"
+            f"⏭ Tizimda bor edi: {counts['exists']}\n"
+            f"❌ Xatolik: {counts['error']}"
+        )
+        report_sent = bool(await send_report_file(bot, path, caption, [access.user_id]))
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    return {**counts, "files": len(results), "report_sent": report_sent,
+            "errors": [r for r in results if r["status"] == "error"][:20]}
 
 
 # --- access requests (a pending user) ------------------------------------------

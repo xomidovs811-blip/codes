@@ -248,6 +248,23 @@ td.remainder-cell input { background: #dcfce7; color: #15803d; }
 .export-status.ok { color: #15803d; }
 .export-status.error { color: #b91c1c; }
 #zayavkaTable { min-width: 1450px; }
+
+/* "Back-up qilish" dialog: archive months (folders) and their files */
+.backup-list { max-height: 50vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; }
+.backup-month { border-bottom: 1px solid var(--border); }
+.backup-month:last-child { border-bottom: none; }
+.backup-month > summary {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  font-weight: 700; cursor: pointer; list-style: none;
+}
+.backup-month > summary::-webkit-details-marker { display: none; }
+.backup-month > summary .count { margin-left: auto; font-weight: 600; font-size: 13px; color: var(--tg-hint); }
+.backup-file { display: flex; align-items: center; gap: 10px; padding: 7px 12px 7px 34px; font-size: 14px; }
+.backup-file .name { flex: 1; min-width: 0; word-break: break-all; }
+.backup-badge { flex-shrink: 0; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.backup-badge.in { background: #e5e7eb; color: #4b5563; }
+.backup-badge.out { background: #dcfce7; color: #15803d; }
+.backup-list input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
 .creator-chip {
   display: inline-block;
   padding: 3px 9px;

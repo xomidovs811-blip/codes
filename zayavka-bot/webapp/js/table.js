@@ -460,10 +460,126 @@ function setupExport() {
   });
 }
 
+/**
+ * "🗄️ Back-up qilish" (admins): lists the Zayavkalar archive by month, lets
+ * the admin tick whole months or single files, and restores the chosen ones
+ * that are NOT in the system yet (the server skips existing numbers). The
+ * detailed Excel report is sent to the admin's Telegram chat.
+ */
+function setupBackup() {
+  const backdrop = document.getElementById("backupModalBackdrop");
+  const listEl = document.getElementById("backupList");
+  const statusEl = document.getElementById("backupStatus");
+  const restoreBtn = document.getElementById("backupRestoreBtn");
+  let busy = false;
+
+  const setStatus = (kind, text) => {
+    statusEl.className = "export-status " + kind;
+    statusEl.textContent = text;
+  };
+  const fileBoxes = () => [...listEl.querySelectorAll("input[data-path]")];
+  const refreshCounts = () => {
+    listEl.querySelectorAll(".backup-month").forEach((m) => {
+      const boxes = [...m.querySelectorAll("input[data-path]")];
+      const ticked = boxes.filter((b) => b.checked).length;
+      const monthBox = m.querySelector("input[data-month]");
+      monthBox.checked = ticked === boxes.length && boxes.length > 0;
+      monthBox.indeterminate = ticked > 0 && ticked < boxes.length;
+    });
+    const n = fileBoxes().filter((b) => b.checked).length;
+    restoreBtn.disabled = busy || n === 0;
+    restoreBtn.textContent = n ? `♻️ Tanlanganlarni tiklash (${n} ta fayl)` : "♻️ Tanlanganlarni tiklash";
+  };
+
+  async function load() {
+    listEl.innerHTML = `<p class="hint" style="padding:10px;">Yuklanmoqda...</p>`;
+    setStatus("", "");
+    try {
+      const data = await apiGet("/api/backup/files");
+      document.getElementById("backupDir").innerHTML =
+        `📁 <b>${esc(data.archive_dir)}</b><br>Fayllar: <b>${data.total_files}</b>, tizimda yo'q: <b>${data.total_missing}</b>`;
+      if (!data.months.length) {
+        listEl.innerHTML = `<p class="hint" style="padding:10px;">Arxiv hali bo'sh.</p>`;
+        refreshCounts();
+        return;
+      }
+      listEl.innerHTML = data.months.map((m) => `
+        <details class="backup-month">
+          <summary>
+            <input type="checkbox" data-month="${esc(m.month)}" />
+            📁 ${esc(m.month)}
+            <span class="count">${m.files.length} ta fayl${m.missing ? `, <span style="color:#15803d;">${m.missing} ta yo'q</span>` : ""}</span>
+          </summary>
+          ${m.files.map((f) => `
+            <label class="backup-file">
+              <input type="checkbox" data-path="${esc(f.path)}" data-missing="${f.in_system ? "0" : "1"}" />
+              <span class="name">${esc(f.name)}</span>
+              <span class="backup-badge ${f.in_system ? "in" : "out"}">${f.in_system ? "Tizimda bor" : "Tizimda yo'q"}</span>
+            </label>`).join("")}
+        </details>`).join("");
+      listEl.querySelectorAll("input[data-month]").forEach((box) => {
+        box.addEventListener("click", (e) => e.stopPropagation());   // ticking doesn't fold/unfold the month
+        box.addEventListener("change", () => {
+          box.closest(".backup-month").querySelectorAll("input[data-path]").forEach((b) => { b.checked = box.checked; });
+          refreshCounts();
+        });
+      });
+      fileBoxes().forEach((b) => b.addEventListener("change", refreshCounts));
+      refreshCounts();
+    } catch (e) {
+      listEl.innerHTML = "";
+      setStatus("error", "Xatolik: " + e.message);
+    }
+  }
+
+  async function restore() {
+    const files = fileBoxes().filter((b) => b.checked).map((b) => b.dataset.path);
+    if (!files.length || busy) return;
+    busy = true;
+    refreshCounts();
+    setStatus("info", `⏳ ${files.length} ta fayl tekshirilmoqda va tiklanmoqda...`);
+    try {
+      const r = await apiPost("/api/backup/restore", { files });
+      setStatus(
+        r.error ? "error" : "ok",
+        `✅ Tiklandi: ${r.restored}  ·  ⏭ Tizimda bor edi: ${r.exists}  ·  ❌ Xatolik: ${r.error}` +
+        (r.report_sent ? "  —  Hisobot Telegram chatingizga yuborildi." : "  —  Hisobotni yuborib bo'lmadi (botga /start bosing).")
+      );
+      busy = false;
+      const msg = statusEl.textContent;
+      await load();
+      setStatus(r.error ? "error" : "ok", msg);
+      if (r.restored) loadList();
+    } catch (e) {
+      busy = false;
+      refreshCounts();
+      setStatus("error", "Xatolik: " + e.message);
+    }
+  }
+
+  document.getElementById("backupBtn").addEventListener("click", () => {
+    backdrop.classList.add("show");
+    load();
+  });
+  document.getElementById("backupSelectMissing").addEventListener("click", () => {
+    fileBoxes().forEach((b) => { b.checked = b.dataset.missing === "1"; });
+    refreshCounts();
+  });
+  document.getElementById("backupSelectNone").addEventListener("click", () => {
+    fileBoxes().forEach((b) => { b.checked = false; });
+    refreshCounts();
+  });
+  restoreBtn.addEventListener("click", restore);
+  const close = () => { if (!busy) backdrop.classList.remove("show"); };
+  document.getElementById("backupModalClose").addEventListener("click", close);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   setupViewToggle();
   setupNavButtons();
   setupExport();
+  setupBackup();
   setupAuthTabs();
 
   document.getElementById("applyFilters").addEventListener("click", loadList);
@@ -490,6 +606,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   showCreator = !!(currentMe.is_admin || currentMe.can_view_others);
   document.getElementById("fCreatorField").style.display = showCreator ? "" : "none";
   document.getElementById("exportBtn").style.display = currentMe.can_report ? "" : "none";
+  document.getElementById("backupBtn").style.display = currentMe.is_admin ? "" : "none";
   document.getElementById("reqBtn").addEventListener("click", submitRegister);
   document.getElementById("phoneBtn").addEventListener("click", sharePhone);
   if (currentMe.status === "pending" || currentMe.status === "blocked" || currentMe.can_view === false) return;

@@ -167,7 +167,25 @@ def _money(v: float):
 
 
 def build_workbook(zayavka: dict) -> Workbook:
+    """The single-sheet zayavka file sent to Telegram (see fill_sheet)."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Заявка"
+    fill_sheet(ws, zayavka)
+    protect_workbook(wb)
+    return wb
+
+
+def protect_workbook(wb: Workbook) -> None:
+    """Locks the sheet list (no adding/renaming/unhiding sheets) - see fill_sheet."""
+    if EXCEL_SHEET_PASSWORD:
+        wb.security = WorkbookProtection(workbookPassword=EXCEL_SHEET_PASSWORD, lockStructure=True)
+
+
+def fill_sheet(ws, zayavka: dict) -> None:
     """
+    Draws one zayavka onto `ws` - also used by app/archive.py, which puts
+    every version of a zayavka on its own sheet of one archive file.
     zayavka: {
       "number": str, "object_name": str, "date": date, "from_whom": str,
       "to_whom": str, "payment_type": str,
@@ -176,9 +194,6 @@ def build_workbook(zayavka: dict) -> Workbook:
                   qty, price, advance, work_type, comment}, ... ]
     }
     """
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Заявка"
     ws.sheet_view.showGridLines = False
 
     items = zayavka["items"]
@@ -435,9 +450,6 @@ def build_workbook(zayavka: dict) -> Workbook:
         ws.protection.password = EXCEL_SHEET_PASSWORD
         ws.protection.formatColumns = False
         ws.protection.formatRows = False
-        wb.security = WorkbookProtection(workbookPassword=EXCEL_SHEET_PASSWORD, lockStructure=True)
-
-    return wb
 
 
 def save_workbook(zayavka: dict, out_dir: str) -> str:

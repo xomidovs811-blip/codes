@@ -114,6 +114,10 @@ class NameOptionIn(BaseModel):
     name: str
 
 
+class BackupRestoreIn(BaseModel):
+    files: List[str]   # archive paths like "2026-03/Zayavka-15-3-14-Я-К.xlsx"
+
+
 class NameOptionOrder(BaseModel):
     category: str
     names: List[str]
