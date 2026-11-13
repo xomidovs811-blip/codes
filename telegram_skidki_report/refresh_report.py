@@ -368,6 +368,25 @@ def pending_days(today):
     return days
 
 
+def notify_me(text):
+    """Status message to the owner's private chat (state/admin_chat_id.txt). Never raises."""
+    try:
+        with open(os.path.join(STATE_DIR, "admin_chat_id.txt"), encoding="utf-8") as f:
+            chat_id = f.read().strip()
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        if not chat_id or not token:
+            return
+        import requests
+        requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                      data={"chat_id": chat_id, "text": text[:4000]}, timeout=30)
+    except Exception:
+        log.warning("Status message to your private chat was not sent")
+
+
+def short_error(e):
+    return (str(e) or e.__class__.__name__).splitlines()[0][:300]
+
+
 def main():
     setup_logging()
     days = [dt.date.fromisoformat(sys.argv[1])] if len(sys.argv) > 1 else pending_days(dt.date.today())
@@ -377,6 +396,7 @@ def main():
         return 0
     if not single_run_lock():
         log.error("Another refresh is still running - this run is skipped")
+        notify_me("⚠️ Скидки отчёт: обновление пропущено — другое обновление ещё идёт")
         return 1
     try:
         kill_leftover_excel()
@@ -384,9 +404,11 @@ def main():
             month_days = [d for d in days if month_key(d) == month]
             refresh(get_month_file(month_days[0]), month_days)
         log.info("DONE")
+        notify_me("✅ Скидки отчёт обновлён: " + ", ".join(f"{d:%d.%m.%Y}" for d in days))
         return 0
-    except Exception:
+    except Exception as e:
         log.exception("REFRESH FAILED")
+        notify_me(f"❌ Скидки отчёт: обновление НЕ удалось ({', '.join(f'{d:%d.%m}' for d in days)})\n{short_error(e)}")
         return 1
     finally:
         os.remove(os.path.join(STATE_DIR, "refresh.lock"))

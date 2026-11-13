@@ -163,6 +163,24 @@ def send_day(day, force=False):
     return True
 
 
+def notify_me(text):
+    """Status message to the owner's private chat (state/admin_chat_id.txt). Never raises."""
+    try:
+        with open(os.path.join(STATE_DIR, "admin_chat_id.txt"), encoding="utf-8") as f:
+            chat_id = f.read().strip()
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        if not chat_id or not token:
+            return
+        requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                      data={"chat_id": chat_id, "text": text[:4000]}, timeout=30)
+    except Exception:
+        log.warning("Status message to your private chat was not sent")
+
+
+def short_error(e):
+    return (str(e) or e.__class__.__name__).splitlines()[0][:300]
+
+
 def main():
     setup_logging()
     args = [a for a in sys.argv[1:] if a != "--force"]
@@ -178,9 +196,12 @@ def main():
                 time.sleep(3)  # stay well inside Telegram's group rate limit
             send_day(day, force)  # stops at the first failing day so the order is kept
         log.info("DONE")
+        if days:
+            notify_me("✅ Скидки отчёт отправлен в группу: " + ", ".join(f"{d:%d.%m.%Y}" for d in days))
         return 0
-    except Exception:
+    except Exception as e:
         log.exception("SEND FAILED")
+        notify_me(f"❌ Скидки отчёт НЕ отправлен\n{short_error(e)}")
         return 1
 
 
