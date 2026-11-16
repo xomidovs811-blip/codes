@@ -36,6 +36,7 @@ REPORT_FOLDER = r"\\192.168.1.101\Auditor\AUDIT\Скидки\Скидки отч
 FILE_BASE_NAME = "Скидки отчёт"
 SEND_TEXT = True  # also send the text from the "Telegram" sheet
 MAX_CATCHUP_DAYS = 31  # never go further back than this
+RECHECK_DAYS = 10      # reports of the last N days are re-checked: deleted from the group -> sent again
 # ==================================================================
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -114,16 +115,90 @@ def split_text(text, limit=4096):
     return parts
 
 
-def pending_days(today):
-    """Days after the last sent report up to yesterday that are not sent yet."""
+def caption(day):
+    return f"📊 {FILE_BASE_NAME} за {day:%d.%m.%Y}"
+
+
+def report_in_chat(day):
+    """Is the report for `day` still in the group? Unknown counts as yes.
+
+    Re-setting the file message's caption to the same text changes nothing:
+    Telegram answers "message is not modified" if the message is there and
+    "message to edit not found" if someone deleted it.
+    """
+    try:
+        with open(os.path.join(STATE_DIR, f"messages_{day}.json"), encoding="utf-8") as f:
+            ids = json.load(f)
+    except (FileNotFoundError, ValueError):
+        return True
+    if not ids:
+        return True
+    try:
+        r = requests.post(API.format(BOT_TOKEN, "editMessageCaption"), timeout=30,
+                          data={"chat_id": CHAT_ID, "message_id": ids[0], "caption": caption(day)}).json()
+    except requests.RequestException:
+        return True
+    if r.get("ok"):
+        return True
+    text = (r.get("description") or "").lower()
+    return not ("not found" in text or "message_id_invalid" in text)
+
+
+def sync_deleted_reports(today, logger=None):
+    """Reports of the last RECHECK_DAYS days that were deleted from the group
+    become "not sent" again, so the next refresh/send prepares them again."""
+    logger = logger or log
+    if not BOT_TOKEN:
+        return []
     yesterday = today - dt.timedelta(days=1)
-    sent = [dt.date.fromisoformat(os.path.basename(p)[5:15])
-            for p in glob.glob(os.path.join(STATE_DIR, "sent_????-??-??.txt"))]
-    start = max(sent) + dt.timedelta(days=1) if sent else yesterday
+    reopened = []
+    for i in range(RECHECK_DAYS):
+        day = yesterday - dt.timedelta(days=i)
+        sent = os.path.join(STATE_DIR, f"sent_{day}.txt")
+        if not os.path.exists(sent) or report_in_chat(day):
+            continue
+        msgs = os.path.join(STATE_DIR, f"messages_{day}.json")
+        try:
+            with open(msgs, encoding="utf-8") as f:
+                rest = json.load(f)[1:]
+        except (FileNotFoundError, ValueError):
+            rest = []
+        for message_id in rest:  # text messages that may still be there
+            try:
+                requests.post(API.format(BOT_TOKEN, "deleteMessage"), timeout=30,
+                              data={"chat_id": CHAT_ID, "message_id": message_id})
+            except requests.RequestException:
+                pass
+        for path in (sent, msgs):
+            if os.path.exists(path):
+                os.remove(path)
+        reopened.append(day)
+    if reopened:
+        logger.info("Deleted from the group, will be sent again: %s", ", ".join(map(str, sorted(reopened))))
+    return reopened
+
+
+def pending_days(today):
+    """Days up to yesterday that still need a report, oldest first.
+
+    That is every day after the last sent report (catch-up after missed days)
+    plus, within the last RECHECK_DAYS, any day that is not marked as sent -
+    e.g. because its report was deleted from the group.
+    """
+    yesterday = today - dt.timedelta(days=1)
+    sent = {dt.date.fromisoformat(os.path.basename(p)[5:15])
+            for p in glob.glob(os.path.join(STATE_DIR, "sent_????-??-??.txt"))}
+    if not sent:
+        return [yesterday]
+    start = min(max(sent) + dt.timedelta(days=1), yesterday - dt.timedelta(days=RECHECK_DAYS - 1))
+    known = sent | {dt.date.fromisoformat(os.path.basename(p)[10:20])
+                    for p in glob.glob(os.path.join(STATE_DIR, "refreshed_????-??-??.txt"))}
+    start = max(start, min(known))  # never before the first day this system handled
     start = max(start, yesterday - dt.timedelta(days=MAX_CATCHUP_DAYS - 1))
     days = []
     while start <= yesterday:
-        days.append(start)
+        if start not in sent:
+            days.append(start)
         start += dt.timedelta(days=1)
     return days
 
@@ -145,7 +220,7 @@ def send_day(day, force=False):
 
     with open(path, "rb") as f:
         msg = telegram("sendDocument",
-                       {"chat_id": CHAT_ID, "caption": f"📊 {FILE_BASE_NAME} за {day:%d.%m.%Y}"},
+                       {"chat_id": CHAT_ID, "caption": caption(day)},
                        files={"document": (os.path.basename(monthly), f)})
     remember_message(day, msg)
     log.info("%s: file sent", day)
@@ -185,6 +260,8 @@ def main():
     setup_logging()
     args = [a for a in sys.argv[1:] if a != "--force"]
     force = "--force" in sys.argv
+    if not args:
+        sync_deleted_reports(dt.date.today())
     days = [dt.date.fromisoformat(args[0])] if args else pending_days(dt.date.today())
     log.info("=== SEND: %s ===", ", ".join(map(str, days)) or "nothing to send")
     try:

@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 import os
 import sys
 import tempfile
@@ -69,12 +70,43 @@ class CatchUp(unittest.TestCase):
                     open(os.path.join(d, "sent_2026-10-14.txt"), "w").close()
                     self.assertEqual(mod.pending_days(today), [dt.date(2026, 10, d_) for d_ in (15, 16, 17, 18)])
                     open(os.path.join(d, "sent_2026-10-18.txt"), "w").close()
+                    # a gap in the last days (report deleted from the group) is filled
+                    self.assertEqual(mod.pending_days(today), [dt.date(2026, 10, d_) for d_ in (15, 16, 17)])
+                    for d_ in (15, 16, 17):
+                        open(os.path.join(d, f"sent_2026-10-{d_}.txt"), "w").close()
                     self.assertEqual(mod.pending_days(today), [])
                     with mock.patch.object(mod, "MAX_CATCHUP_DAYS", 2):
                         self.assertEqual(mod.pending_days(dt.date(2026, 10, 25)),
                                          [dt.date(2026, 10, 23), dt.date(2026, 10, 24)])
                     for f in os.listdir(d):
                         os.remove(os.path.join(d, f))
+
+
+class DeletedReports(unittest.TestCase):
+    def test_deleted_report_is_reopened(self):
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(st, "STATE_DIR", d), \
+                mock.patch.object(st, "BOT_TOKEN", "1:x"):
+            for day, ids in (("2026-11-14", [10, 11]), ("2026-11-15", [12, 13]), ("2026-11-16", [14, 15])):
+                open(os.path.join(d, f"sent_{day}.txt"), "w").close()
+                open(os.path.join(d, f"refreshed_{day}.txt"), "w").close()
+                with open(os.path.join(d, f"messages_{day}.json"), "w") as f:
+                    json.dump(ids, f)
+            calls = []
+
+            def fake_post(url, data=None, timeout=None):
+                calls.append((url.rsplit("/", 1)[1], data["message_id"]))
+                gone = data["message_id"] in (10, 12)  # file messages of 14 and 15 were deleted
+                body = {"ok": False, "description": "Bad Request: message to edit not found" if gone
+                        else "Bad Request: message is not modified"}
+                return mock.Mock(json=lambda: body)
+
+            with mock.patch.object(st.requests, "post", fake_post):
+                reopened = st.sync_deleted_reports(dt.date(2026, 11, 17))
+            self.assertEqual(sorted(reopened), [dt.date(2026, 11, 14), dt.date(2026, 11, 15)])
+            self.assertFalse(os.path.exists(os.path.join(d, "sent_2026-11-14.txt")))
+            self.assertTrue(os.path.exists(os.path.join(d, "sent_2026-11-16.txt")))
+            self.assertIn(("deleteMessage", 11), calls)  # leftover text message removed
+            self.assertEqual(st.pending_days(dt.date(2026, 11, 17)), [dt.date(2026, 11, 14), dt.date(2026, 11, 15)])
 
 
 class Send(unittest.TestCase):

@@ -40,6 +40,7 @@ TELEGRAM_TEXT_RANGE = "Telegram_текст"
 QUERY_NAME = "База_продаж"
 REFRESH_TIMEOUT_MIN = 15  # Excel is killed if one run takes longer than this
 MAX_CATCHUP_DAYS = 31  # never go further back than this
+RECHECK_DAYS = 10      # reports of the last N days are re-checked: deleted from the group -> sent again
 # ==================================================================
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -355,15 +356,26 @@ def _refreshing(conn):
 
 
 def pending_days(today):
-    """Days after the last sent report up to yesterday that are not sent yet."""
+    """Days up to yesterday that still need a report, oldest first.
+
+    That is every day after the last sent report (catch-up after missed days)
+    plus, within the last RECHECK_DAYS, any day that is not marked as sent -
+    e.g. because its report was deleted from the group.
+    """
     yesterday = today - dt.timedelta(days=1)
-    sent = [dt.date.fromisoformat(os.path.basename(p)[5:15])
-            for p in glob.glob(os.path.join(STATE_DIR, "sent_????-??-??.txt"))]
-    start = max(sent) + dt.timedelta(days=1) if sent else yesterday
+    sent = {dt.date.fromisoformat(os.path.basename(p)[5:15])
+            for p in glob.glob(os.path.join(STATE_DIR, "sent_????-??-??.txt"))}
+    if not sent:
+        return [yesterday]
+    start = min(max(sent) + dt.timedelta(days=1), yesterday - dt.timedelta(days=RECHECK_DAYS - 1))
+    known = sent | {dt.date.fromisoformat(os.path.basename(p)[10:20])
+                    for p in glob.glob(os.path.join(STATE_DIR, "refreshed_????-??-??.txt"))}
+    start = max(start, min(known))  # never before the first day this system handled
     start = max(start, yesterday - dt.timedelta(days=MAX_CATCHUP_DAYS - 1))
     days = []
     while start <= yesterday:
-        days.append(start)
+        if start not in sent:
+            days.append(start)
         start += dt.timedelta(days=1)
     return days
 
@@ -389,6 +401,12 @@ def short_error(e):
 
 def main():
     setup_logging()
+    if len(sys.argv) == 1:
+        try:  # reports deleted from the group must be prepared again
+            import send_telegram
+            send_telegram.sync_deleted_reports(dt.date.today(), log)
+        except Exception as e:
+            log.warning("Could not check the group for deleted reports: %s", e)
     days = [dt.date.fromisoformat(sys.argv[1])] if len(sys.argv) > 1 else pending_days(dt.date.today())
     log.info("=== REFRESH: %s ===", ", ".join(map(str, days)) or "nothing to do")
     os.makedirs(STATE_DIR, exist_ok=True)
